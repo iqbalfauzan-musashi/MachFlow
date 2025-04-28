@@ -1,0 +1,110 @@
+[
+  {
+    "id": "c77c612c2ecb7147",
+    "type": "tab",
+    "label": "Flow 1",
+    "disabled": false,
+    "info": "",
+    "env": []
+  },
+  {
+    "id": "705e1ec66d29d357",
+    "type": "inject",
+    "z": "c77c612c2ecb7147",
+    "name": "INTERVAL",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 170,
+    "y": 220,
+    "wires": [["2c6530a9a236d637"]]
+  },
+  {
+    "id": "2c6530a9a236d637",
+    "type": "function",
+    "z": "c77c612c2ecb7147",
+    "name": "Prepare Machine List",
+    "func": "// Configuration for all machines\nconst machines = [\n    { code: '52032', ip: '10.42.46.49' },\n    { code: '52034', ip: '10.42.46.52' },\n    { code: '52049', ip: '10.42.46.55' },\n    { code: '52066', ip: '10.42.46.62' },\n    { code: '52067', ip: '10.42.46.65' },\n    { code: '52069', ip: '10.42.46.68' }\n];\n\n// Create a message for each machine\nreturn machines.map(machine => ({\n    payload: {\n        machine_code: machine.code,\n        ip: machine.ip,\n        unitId: 1,\n        address: 45,\n        quantity: 3\n    },\n    topic: machine.code\n}));",
+    "outputs": 6,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 360,
+    "y": 220,
+    "wires": [
+      ["8b09a7fb7015f219"],
+      ["8b09a7fb7015f219"],
+      ["8b09a7fb7015f219"],
+      ["8b09a7fb7015f219"],
+      ["8b09a7fb7015f219"],
+      ["8b09a7fb7015f219"]
+    ]
+  },
+  {
+    "id": "8b09a7fb7015f219",
+    "type": "modbus-flex-getter",
+    "z": "c77c612c2ecb7147",
+    "name": "Modbus Flex-Getter",
+    "showStatusActivities": true,
+    "showErrors": true,
+    "logIOActivities": false,
+    "server": "a2e2c4fe0c4710a5",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": true,
+    "keepMsgProperties": true,
+    "x": 640,
+    "y": 220,
+    "wires": [["e9b1d119e2b851f8"], []]
+  },
+  {
+    "id": "e9b1d119e2b851f8",
+    "type": "function",
+    "z": "c77c612c2ecb7147",
+    "name": "Process Status & Counter",
+    "func": "const NoMachine = msg.topic || msg.payload.machine_code;\nconst sesName = 'StatusCounter';\nconst Status = msg.payload[0];\nconst Counter = msg.payload[2];\n\n// Get previous values\nlet lastData = flow.get(sesName + '_' + NoMachine) || null;\nlet isUpdate = 1;\n\n// Check if values have changed\nif (lastData != null) {\n    if (lastData.Status == Status && lastData.Counter == Counter) {\n        isUpdate = 0;\n    }\n}\n\n// Save current values\nlastData = {\n    Status: Status,\n    Counter: Counter\n};\nflow.set(sesName + '_' + NoMachine, lastData);\n\n// Only forward if there's an update\nif (isUpdate === 1) {\n    msg.payload = {\n        machine_code: NoMachine,\n        data: msg.payload,\n        is_update: isUpdate,\n        status: Status,\n        counter: Counter\n    };\n    return msg;\n}\n// Return null if no update needed\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 910,
+    "y": 220,
+    "wires": [["680fe913db22dbea"]]
+  },
+  {
+    "id": "680fe913db22dbea",
+    "type": "MSSQL",
+    "z": "c77c612c2ecb7147",
+    "mssqlCN": "d27c51f1dc7c9c21",
+    "name": "INSERT STATUS & COUNTER",
+    "query": "declare @p_machine_code as nvarchar(10) = @machine_code\ndeclare @p_is_update as int = @is_update\ndeclare @p_status as int = @status\ndeclare @p_counter as int = @counter\n\nBEGIN\n    -- INSERT STATUS \n    exec SPMES_Chart @p_machine_code, @p_status;\n\n    -- INSERT COUNTER\n    exec SPMES_Chart_Counter @p_machine_code, @p_counter;\nEND",
+    "outField": "payload",
+    "x": 1210,
+    "y": 240,
+    "wires": [[]]
+  },
+  {
+    "id": "d27c51f1dc7c9c21",
+    "type": "MSSQL-CN",
+    "name": "10.41.51.2 - PLCDATA_CKR",
+    "server": "localhost",
+    "encyption": false,
+    "database": "PLCDATA_CKR"
+  }
+]
