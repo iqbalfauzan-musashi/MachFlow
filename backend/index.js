@@ -3,18 +3,24 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
-const { connectDatabases } = require("./db");
-const setupWebSocketServer = require("./websockets");
+const path = require("path");
+const fs = require("fs");
+const { connectDatabases, testConnection, configDB1, configDB2, configDB3 } = require("./db");
+
+// Log environment details for debugging
+console.log(`Node.js version: ${process.version}`);
+console.log(`Platform: ${process.platform}`);
+console.log(`Current directory: ${process.cwd()}`);
 
 const app = express();
 
-// Extract environment variables
-const PORT = process.env.BACKEND_PORT;
-const HOST = process.env.BACKEND_HOST;
-const API_PREFIX = process.env.API_PREFIX;
-const CORS_ORIGIN = process.env.CORS_ORIGIN;
-const CORS_METHODS = process.env.CORS_METHODS;
-const CORS_HEADERS = process.env.CORS_HEADERS;
+// Extract environment variables with fallbacks
+const PORT = process.env.BACKEND_PORT || 3001;
+const HOST = process.env.BACKEND_HOST || '0.0.0.0';
+const API_PREFIX = process.env.API_PREFIX || '/api';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const CORS_METHODS = process.env.CORS_METHODS || 'GET,POST,PUT,DELETE';
+const CORS_HEADERS = process.env.CORS_HEADERS || 'Content-Type,Authorization';
 
 // Middleware
 app.use(express.json());
@@ -29,15 +35,34 @@ app.use(
   })
 );
 
-// Fungsi async untuk inisialisasi server
+// Check if .env file exists
+const envPath = path.resolve(process.cwd(), '.env');
+if (!fs.existsSync(envPath)) {
+  console.warn("Warning: .env file not found at:", envPath);
+  console.log("Using default environment variables.");
+}
+
+// Async function to initialize server
 const startServer = async () => {
   try {
-    // Sambungkan ke semua database
+    console.log("Testing database connections before server start...");
+    
+    // Test connections before fully connecting
+    const db1Status = await testConnection(configDB1, "IOT_HUB");
+    const db2Status = await testConnection(configDB2, "DEPT_MANUFACTURING");
+    const db3Status = await testConnection(configDB3, "MACHINE_LOG");
+    
+    if (!db1Status || !db2Status || !db3Status) {
+      console.warn("Warning: Some database connections failed. Server will still attempt to start.");
+    }
+
+    // Connect to all databases
     const databases = await connectDatabases();
 
-    // Tambahkan database ke global untuk diakses di seluruh aplikasi
+    // Add database connections to global scope for access throughout the application
     global.databases = databases;
 
+    // Import routes
     // Routes using DEPT_MANUFACTURING (DB2)
     const inventoryRouter = require("./routes/inventory");
     const authRouter = require("./routes/auth");
@@ -68,10 +93,20 @@ const startServer = async () => {
         status: "ok",
         message: "Server is running",
         databases: {
-          db1: process.env.DB1_DATABASE, // IOT_HUB
-          db2: process.env.DB2_DATABASE, // DEPT_MANUFACTURING
-          db3: process.env.DB3_DATABASE, // MACHINE_LOG
+          db1: {
+            name: process.env.DB1_DATABASE || "IOT_HUB",
+            connected: !!databases.iotHub
+          },
+          db2: {
+            name: process.env.DB2_DATABASE || "DEPT_MANUFACTURING",
+            connected: !!databases.deptMfg
+          },
+          db3: {
+            name: process.env.DB3_DATABASE || "MACHINE_LOG",
+            connected: !!databases.plcData
+          }
         },
+        serverTime: new Date().toISOString()
       });
     });
 
@@ -79,14 +114,16 @@ const startServer = async () => {
     const server = http.createServer(app);
 
     // Setup WebSocket server
+    const setupWebSocketServer = require("./websockets");
     const wsServer = setupWebSocketServer(server);
 
     // Start HTTP server (which also handles WebSockets)
-    server.listen(PORT, HOST, () =>
-      console.log(
-        `Server running on http://${HOST}:${PORT} with WebSocket support`
-      )
-    );
+    server.listen(PORT, HOST, () => {
+      console.log(`⚡️ Server running on http://${HOST}:${PORT}`);
+      console.log(`API available at http://${HOST}:${PORT}${API_PREFIX}`);
+      console.log(`Health check at http://${HOST}:${PORT}${API_PREFIX}/health`);
+      console.log(`WebSocket server enabled`);
+    });
 
     // Handle graceful shutdown
     process.on("SIGTERM", () => {
@@ -97,11 +134,21 @@ const startServer = async () => {
         process.exit(0);
       });
     });
+
+    process.on("SIGINT", () => {
+      console.log("SIGINT signal received: closing HTTP server");
+      wsServer.close();
+      server.close(() => {
+        console.log("HTTP server closed");
+        process.exit(0);
+      });
+    });
   } catch (error) {
     console.error("Failed to start server:", error);
+    console.error("Server will exit. Please check your database connection and configuration.");
     process.exit(1);
   }
 };
 
-// Jalankan server
+// Start the server
 startServer();
