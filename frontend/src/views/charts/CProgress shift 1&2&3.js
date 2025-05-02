@@ -19,7 +19,7 @@ const MachineDetail = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const machineCode = '45050'
+  const machineCode = '45004'
 
   const fetchMachineData = async (date) => {
     try {
