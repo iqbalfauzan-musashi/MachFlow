@@ -59,6 +59,50 @@ const _nav = [
     ],
   },
   {
+    component: CNavGroup,
+    name: 'Maintenance Eng',
+    icon: <CIcon icon={cilNotes} customClassName="nav-icon" />,
+    items: [
+      {
+        component: CNavItem,
+        name: 'Job List',
+        to: '/maintenance/joblist',
+      },
+      {
+        component: CNavItem,
+        name: 'Inventory',
+        to: '/maintenance/inventory',
+      },
+      {
+        component: CNavItem,
+        name: 'History Job',
+        to: '/maintenance/jobhistory',
+      },
+    ],
+  },
+  {
+    component: CNavGroup,
+    name: 'PPIC',
+    icon: <CIcon icon={cilNotes} customClassName="nav-icon" />,
+    items: [
+      {
+        component: CNavItem,
+        name: 'Job List',
+        to: '/ppic/joblist',
+      },
+      {
+        component: CNavItem,
+        name: 'Inventory',
+        to: '/ppic/inventory',
+      },
+      {
+        component: CNavItem,
+        name: 'History Job',
+        to: '/ppic/jobhistory',
+      },
+    ],
+  },
+  {
     component: CNavItem,
     name: 'Timeline Project',
     to: '/charts',

@@ -12,10 +12,20 @@ const Kanagata = React.lazy(() => import('./views/kanagata/Kanagata.js'))
 const Cikarang = React.lazy(() => import('./views/cikarang/Cikarang.js'))
 const Karawang = React.lazy(() => import('./views/karawang/Karawang.js'))
 
-// Maintenance
+// Manufacturing
 const Inventory = React.lazy(() => import('./views/manufacturing/inventory/Inventory.js'))
 const JobList = React.lazy(() => import('./views/manufacturing/joblist/JobList.js'))
 const JobHistory = React.lazy(() => import('./views/manufacturing/jobhistory/JobHistory.js'))
+
+// Maintenance
+const Inventory1 = React.lazy(() => import('./views/maintenance/inventory/Inventory.js'))
+const JobList1 = React.lazy(() => import('./views/maintenance/joblist/JobList.js'))
+const JobHistory1 = React.lazy(() => import('./views/maintenance/jobhistory/JobHistory.js'))
+
+// PPIC
+const Inventory2 = React.lazy(() => import('./views/manufacturing/inventory/Inventory.js'))
+const JobList2 = React.lazy(() => import('./views/manufacturing/joblist/JobList.js'))
+const JobHistory2 = React.lazy(() => import('./views/manufacturing/jobhistory/JobHistory.js'))
 
 // Timeline Project
 const Charts = React.lazy(() => import('./views/charts/Charts'))
@@ -40,6 +50,16 @@ const routes = [
   { path: '/manufacturing/inventory', name: 'Inventory', element: Inventory },
   { path: '/manufacturing/jobhistory', name: 'JobHistory', element: JobHistory },
   { path: '/manufacturing/joblist', name: 'JobList', element: JobList },
+
+  // Maintenance
+  { path: '/maintenance/inventory', name: 'Inventory', element: Inventory },
+  { path: '/maintenance/jobhistory', name: 'JobHistory', element: JobHistory },
+  { path: '/maintenance/joblist', name: 'JobList', element: JobList },
+
+  // PPIC
+  { path: '/ppic/inventory', name: 'Inventory', element: Inventory },
+  { path: '/ppic/jobhistory', name: 'JobHistory', element: JobHistory },
+  { path: '/ppic/joblist', name: 'JobList', element: JobList },
 
   // Timeline Project
   { path: '/charts', name: 'Charts', element: Charts },
