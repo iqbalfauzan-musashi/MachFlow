@@ -11,7 +11,7 @@ import {
   CProgressStacked,
 } from '@coreui/react'
 import axios from 'axios'
-import { getApiUrl } from '../../utils/apiUtils'
+import { getApiUrl } from '../../../utils/apiUtils'
 
 const DetailProduction = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10))

@@ -9,7 +9,7 @@ import {
   CProgressStacked,
 } from '@coreui/react'
 
-const MachineDetail = () => {
+const DetailProduction = () => {
   // Define shift data with hours and progress values
   const shifts = [
     {
@@ -160,4 +160,4 @@ const MachineDetail = () => {
   )
 }
 
-export default MachineDetail
+export default DetailProduction

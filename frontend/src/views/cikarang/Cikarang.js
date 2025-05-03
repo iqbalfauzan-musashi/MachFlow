@@ -15,7 +15,7 @@ import { Link } from 'react-router-dom'
 import {
   getStatusConfig,
   generateDefaultSignal,
-} from '../../utils/signalLightConfig/signalLightConfig.js'
+} from '../../../src/components/signalLightConfig/signalLightConfig'
 import '../../scss/signalLightConfig.scss'
 import { getApiUrl, getWebSocketUrl } from '../../utils/apiUtils'
 

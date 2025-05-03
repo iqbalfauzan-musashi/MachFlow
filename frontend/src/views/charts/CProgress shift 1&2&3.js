@@ -13,7 +13,7 @@ import {
 import axios from 'axios'
 import { getApiUrl } from '../../utils/apiUtils'
 
-const MachineDetail = () => {
+const DetailProduction = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10))
   const [machineData, setMachineData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -768,4 +768,4 @@ const MachineDetail = () => {
   )
 }
 
-export default MachineDetail
+export default DetailProduction

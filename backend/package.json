@@ -21,7 +21,8 @@
     "joi-password-complexity": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "mssql": "^11.0.1"
+    "mssql": "^11.0.1",
+    "ws": "^8.18.1"
   },
   "description": "",
   "devDependencies": {

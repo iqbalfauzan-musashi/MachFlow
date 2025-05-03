@@ -13,34 +13,38 @@ import {
 import axios from 'axios'
 import { getApiUrl } from '../../utils/apiUtils'
 
-const MachineDetail = () => {
+const DetailProduction = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10))
   const [machineData, setMachineData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const machineCode = '45045'
+  const machineCode = '61030'
 
   const fetchMachineData = async (date) => {
     try {
       setLoading(true)
       setError(null)
 
-      const mainDate = new Date(date)
-      const nextDate = new Date(mainDate)
-      nextDate.setDate(nextDate.getDate() + 1)
-      const nextDateStr = nextDate.toISOString().slice(0, 10)
+      // Calculate the next day for Shift 3
+      const currentDate = new Date(date)
+      const nextDay = new Date(currentDate)
+      nextDay.setDate(nextDay.getDate() + 1)
+      const nextDayStr = nextDay.toISOString().slice(0, 10)
 
-      const [mainResponse, shift3Response] = await Promise.all([
-        axios.get(getApiUrl(`machine-detail/${machineCode}?date=${date}`)),
-        axios.get(getApiUrl(`machine-detail/${machineCode}?date=${nextDateStr}`)),
-      ])
+      // Fetch data for the selected date (Shift 1 & 2)
+      const mainResponse = await axios.get(getApiUrl(`machine-detail/${machineCode}?date=${date}`))
+
+      // Fetch data for the next day (for Shift 3)
+      const nextDayResponse = await axios.get(
+        getApiUrl(`machine-detail/${machineCode}?date=${nextDayStr}`),
+      )
 
       const processedData = processDataForDisplay(
         mainResponse.data,
-        shift3Response.data,
+        nextDayResponse.data,
         date,
-        nextDateStr,
+        nextDayStr,
       )
       setMachineData(processedData)
     } catch (err) {
@@ -51,7 +55,9 @@ const MachineDetail = () => {
     }
   }
 
-  const processDataForDisplay = (mainData, shift3Data, selectedDate, nextDateStr) => {
+  const processDataForDisplay = (mainData, nextDayData, selectedDate, nextDayDate) => {
+    console.log('Processing data for display, date:', selectedDate, 'next day:', nextDayDate)
+
     const shiftRanges = [
       { name: 'Shift 1', start: 7, end: 16 },
       { name: 'Shift 2', start: 16, end: 0 },
@@ -82,69 +88,71 @@ const MachineDetail = () => {
     const shift3End = new Date(nextDateObj)
     shift3End.setHours(7, 0, 0, 0)
 
+    // Filter records for Shift 1 and 2 (from selected date)
     const rawRecordsForShift1And2 = processShiftRecords(
       mainData,
       selectedDateObj,
       nextDateObj,
       shift1Start,
-      shift3End,
+      shift2End,
       'shift1and2',
+      selectedDate,
     )
 
-    const rawRecordsForShift3 = processShiftRecords(
-      shift3Data,
+    // Filter records for Shift 3 (from next day)
+    const rawRecordsForShift3 = processShiftRecordsForShift3(
+      nextDayData,
       nextDateObj,
-      new Date(nextDateObj.getTime() + 86400000),
       shift3Start,
       shift3End,
-      'shift3',
+      nextDayDate,
     )
 
     const rawRecords = [...rawRecordsForShift1And2, ...rawRecordsForShift3]
 
     rawRecords.sort((a, b) => a.displayTimestamp - b.displayTimestamp)
 
+    console.log('Total raw records after processing:', rawRecords.length)
+
     const shifts = shiftRanges.map((shiftRange) => {
-      let shiftStartTime, shiftEndTime
+      let shiftStartTime, shiftEndTime, shiftRecords
 
       if (shiftRange.name === 'Shift 1') {
         shiftStartTime = shift1Start
         shiftEndTime = shift1End
+
+        // Filter records for Shift 1
+        shiftRecords = rawRecords.filter((record) => {
+          const hours = record.displayTimestamp.getHours()
+          return hours >= 7 && hours < 16
+        })
       } else if (shiftRange.name === 'Shift 2') {
         shiftStartTime = shift2Start
         shiftEndTime = shift2End
-      } else {
+
+        // Filter records for Shift 2
+        shiftRecords = rawRecords.filter((record) => {
+          const hours = record.displayTimestamp.getHours()
+          return hours >= 16 && hours < 24
+        })
+      } else if (shiftRange.name === 'Shift 3') {
         shiftStartTime = shift3Start
         shiftEndTime = shift3End
+
+        // Filter records for Shift 3 (next day, 00:00 - 07:00)
+        shiftRecords = rawRecords.filter((record) => {
+          const hours = record.displayTimestamp.getHours()
+          return hours >= 0 && hours < 7 && record.isShift3
+        })
       }
 
-      const shiftRecords = rawRecords.filter((record) => {
-        const recordDate = record.displayTimestamp.toISOString().slice(0, 10)
-        if (shiftRange.name === 'Shift 1') {
-          return (
-            recordDate === selectedDate &&
-            record.displayTimestamp.getHours() >= 7 &&
-            record.displayTimestamp.getHours() < 16
-          )
-        } else if (shiftRange.name === 'Shift 2') {
-          return (
-            recordDate === selectedDate &&
-            record.displayTimestamp.getHours() >= 16 &&
-            record.displayTimestamp.getHours() < 24
-          )
-        } else {
-          return (
-            recordDate === nextDateStr &&
-            record.displayTimestamp.getHours() >= 0 &&
-            record.displayTimestamp.getHours() < 7
-          )
-        }
-      })
+      console.log(`${shiftRange.name} records count:`, shiftRecords ? shiftRecords.length : 0)
 
       let previousShiftLastStatus = null
       let previousShiftLastTimestamp = null
       let previousShiftLastRawTime = null
 
+      // For Shift 2, get the last status from Shift 1
       if (shiftRange.name === 'Shift 2') {
         const shift1Records = rawRecords.filter(
           (record) =>
@@ -158,7 +166,10 @@ const MachineDetail = () => {
           previousShiftLastTimestamp = shift1Records[shift1Records.length - 1].timestamp
           previousShiftLastRawTime = shift1Records[shift1Records.length - 1].rawTime
         }
-      } else if (shiftRange.name === 'Shift 3') {
+      }
+
+      // For Shift 3, get the last status from Shift 2
+      if (shiftRange.name === 'Shift 3') {
         const shift2Records = rawRecords.filter(
           (record) =>
             record.displayTimestamp.toISOString().slice(0, 10) === selectedDate &&
@@ -196,14 +207,16 @@ const MachineDetail = () => {
         })
       }
 
-      shiftRecords.forEach((record) => {
-        processedRecords.push({
-          timestamp: record.timestamp,
-          displayTimestamp: record.displayTimestamp,
-          status: record.status,
-          displayTime: record.rawTime,
+      if (shiftRecords) {
+        shiftRecords.forEach((record) => {
+          processedRecords.push({
+            timestamp: record.timestamp,
+            displayTimestamp: record.displayTimestamp,
+            status: record.status,
+            displayTime: record.rawTime,
+          })
         })
-      })
+      }
 
       processedRecords.sort((a, b) => a.displayTimestamp - b.displayTimestamp)
 
@@ -228,8 +241,19 @@ const MachineDetail = () => {
     }
   }
 
-  const processShiftRecords = (data, dateObj, nextDayObj, startTime, endTime, shiftGroup) => {
+  const processShiftRecords = (
+    data,
+    dateObj,
+    nextDayObj,
+    startTime,
+    endTime,
+    shiftGroup,
+    selectedDate,
+  ) => {
     const rawRecords = []
+    const selectedDateStr = selectedDate // Use the selected date string directly
+
+    console.log('Processing records for date:', selectedDateStr)
 
     if (data.shifts && Array.isArray(data.shifts)) {
       data.shifts.forEach((shift) => {
@@ -237,83 +261,110 @@ const MachineDetail = () => {
           shift.records.forEach((record) => {
             const timestampStr = record.timestamp
 
-            const dbTimeMatch = timestampStr.match(/\d{2}:\d{2}:\d{2}/)
-            const dbTimeStr = dbTimeMatch ? dbTimeMatch[0] : null
-            const dbTimeComponents = dbTimeStr ? dbTimeStr.split(':') : null
-            const dbHours = dbTimeComponents ? parseInt(dbTimeComponents[0]) : null
-            const dbMinutes = dbTimeComponents ? parseInt(dbTimeComponents[1]) : null
-            const formattedTime =
-              dbHours !== null && dbMinutes !== null
-                ? `${dbHours.toString().padStart(2, '0')}:${dbMinutes.toString().padStart(2, '0')}`
-                : null
+            // Extract the date part directly from the timestamp string to avoid timezone issues
+            const recordDateStr = timestampStr.split('T')[0]
 
-            const recordTimestamp = new Date(timestampStr)
-            const recordDateStr = recordTimestamp.toISOString().slice(0, 10)
-            let displayTimestamp
+            // Only process records from the selected date
+            if (recordDateStr === selectedDateStr) {
+              console.log('Processing record timestamp:', timestampStr)
 
-            if (shiftGroup === 'shift1and2') {
-              const selectedDateStr = dateObj.toISOString().slice(0, 10)
-              if (recordDateStr !== selectedDateStr) {
-                return
+              // Extract time components directly from the timestamp string
+              // Format should be YYYY-MM-DDTHH:MM:SS.sssZ or similar
+              const timeParts = timestampStr.split('T')[1].split(':')
+              const dbHours = parseInt(timeParts[0], 10)
+              const dbMinutes = parseInt(timeParts[1], 10)
+
+              const formattedTime = `${dbHours.toString().padStart(2, '0')}:${dbMinutes.toString().padStart(2, '0')}`
+
+              // Create a display timestamp using the db time, not local time
+              const displayTimestamp = new Date(selectedDateStr)
+              displayTimestamp.setHours(dbHours, dbMinutes, 0, 0)
+
+              if (shiftGroup === 'shift1and2') {
+                // Only accept records from the selected date and within shift hours
+                const isInShift1Or2 =
+                  (dbHours >= 7 && dbHours < 24) || (dbHours === 0 && dbMinutes === 0)
+
+                if (isInShift1Or2) {
+                  console.log(
+                    'Adding record with status:',
+                    record.status,
+                    'at time:',
+                    formattedTime,
+                  )
+                  // Use original timestamp for reference but displayTimestamp for UI
+                  const recordTimestamp = new Date(timestampStr)
+                  rawRecords.push({
+                    timestamp: recordTimestamp,
+                    displayTimestamp: displayTimestamp, // This uses selected date with db time
+                    status: record.status,
+                    counter: record.counter,
+                    rawTime: formattedTime, // Use the time directly from the db timestamp
+                    rawTimestamp: record.timestamp,
+                    isShift3: false,
+                  })
+                }
               }
+            }
+          })
+        }
+      })
+    }
 
-              displayTimestamp = new Date(dateObj)
-              if (dbHours !== null && dbMinutes !== null) {
+    console.log('Total records processed for Shift 1 & 2:', rawRecords.length)
+    return rawRecords
+  }
+
+  // New function to process Shift 3 records specifically
+  const processShiftRecordsForShift3 = (data, nextDayObj, shift3Start, shift3End, nextDayDate) => {
+    const rawRecords = []
+    const nextDayDateStr = nextDayDate // Use the next day string directly
+
+    console.log('Processing Shift 3 records for next day:', nextDayDateStr)
+
+    if (data.shifts && Array.isArray(data.shifts)) {
+      data.shifts.forEach((shift) => {
+        if (shift.records && Array.isArray(shift.records)) {
+          shift.records.forEach((record) => {
+            const timestampStr = record.timestamp
+
+            // Extract the date part directly from the timestamp string
+            const recordDateStr = timestampStr.split('T')[0]
+
+            // Only process records from the next day
+            if (recordDateStr === nextDayDateStr) {
+              // Extract time components directly from the timestamp string
+              const timeParts = timestampStr.split('T')[1].split(':')
+              const dbHours = parseInt(timeParts[0], 10)
+              const dbMinutes = parseInt(timeParts[1], 10)
+
+              // Only accept records from midnight to 7 AM
+              if (dbHours >= 0 && dbHours < 7) {
+                console.log('Processing Shift 3 record timestamp:', timestampStr)
+
+                const formattedTime = `${dbHours.toString().padStart(2, '0')}:${dbMinutes.toString().padStart(2, '0')}`
+
+                // Create a display timestamp using the db time from next day
+                const displayTimestamp = new Date(nextDayDateStr)
                 displayTimestamp.setHours(dbHours, dbMinutes, 0, 0)
-              } else {
-                displayTimestamp.setHours(
-                  recordTimestamp.getHours(),
-                  recordTimestamp.getMinutes(),
-                  0,
-                  0,
+
+                console.log(
+                  'Adding Shift 3 record with status:',
+                  record.status,
+                  'at time:',
+                  formattedTime,
                 )
-              }
 
-              const isInShift1Or2 =
-                (dbHours >= 7 && dbHours < 24) || (dbHours == 0 && dbMinutes == 0)
-
-              if (isInShift1Or2) {
+                // Use original timestamp for reference but displayTimestamp for UI
+                const recordTimestamp = new Date(timestampStr)
                 rawRecords.push({
                   timestamp: recordTimestamp,
                   displayTimestamp: displayTimestamp,
                   status: record.status,
                   counter: record.counter,
-                  rawTime:
-                    formattedTime ||
-                    `${recordTimestamp.getHours().toString().padStart(2, '0')}:${recordTimestamp.getMinutes().toString().padStart(2, '0')}`,
+                  rawTime: formattedTime,
                   rawTimestamp: record.timestamp,
-                })
-              }
-            } else if (shiftGroup === 'shift3') {
-              const nextDayStr = nextDayObj.toISOString().slice(0, 10)
-              if (recordDateStr !== nextDayStr) {
-                return
-              }
-
-              displayTimestamp = new Date(nextDayObj)
-              if (dbHours !== null && dbMinutes !== null) {
-                displayTimestamp.setHours(dbHours, dbMinutes, 0, 0)
-              } else {
-                displayTimestamp.setHours(
-                  recordTimestamp.getHours(),
-                  recordTimestamp.getMinutes(),
-                  0,
-                  0,
-                )
-              }
-
-              const isInShift3 = dbHours >= 0 && dbHours < 7
-
-              if (isInShift3) {
-                rawRecords.push({
-                  timestamp: recordTimestamp,
-                  displayTimestamp: displayTimestamp,
-                  status: record.status,
-                  counter: record.counter,
-                  rawTime:
-                    formattedTime ||
-                    `${recordTimestamp.getHours().toString().padStart(2, '0')}:${recordTimestamp.getMinutes().toString().padStart(2, '0')}`,
-                  rawTimestamp: record.timestamp,
+                  isShift3: true, // Flag to identify Shift 3 records
                 })
               }
             }
@@ -322,6 +373,7 @@ const MachineDetail = () => {
       })
     }
 
+    console.log('Total records processed for Shift 3:', rawRecords.length)
     return rawRecords
   }
 
@@ -337,7 +389,7 @@ const MachineDetail = () => {
       shiftDuration = 9
     } else if (shift.name === 'Shift 2') {
       shiftDuration = 8
-    } else {
+    } else if (shift.name === 'Shift 3') {
       shiftDuration = 7
     }
 
@@ -354,7 +406,7 @@ const MachineDetail = () => {
         const firstRecordMinute = records[0].displayTimestamp.getMinutes()
         initialPadPercentage =
           ((firstRecordHour - 16 + firstRecordMinute / 60) / shiftDuration) * 100
-      } else {
+      } else if (shift.name === 'Shift 3') {
         const firstRecordHour = records[0].displayTimestamp.getHours()
         const firstRecordMinute = records[0].displayTimestamp.getMinutes()
         initialPadPercentage = ((firstRecordHour + firstRecordMinute / 60) / shiftDuration) * 100
@@ -397,7 +449,7 @@ const MachineDetail = () => {
           const nextPosition = (nextHour - 16 + nextMinute / 60) / shiftDuration
 
           segmentPercentage = (nextPosition - currentPosition) * 100
-        } else {
+        } else if (shift.name === 'Shift 3') {
           const currentHour = currentRecord.displayTimestamp.getHours()
           const currentMinute = currentRecord.displayTimestamp.getMinutes()
           const nextHour = nextRecord.displayTimestamp.getHours()
@@ -421,7 +473,7 @@ const MachineDetail = () => {
 
           const currentPosition = (currentHour - 16 + currentMinute / 60) / shiftDuration
           segmentPercentage = (1 - currentPosition) * 100
-        } else {
+        } else if (shift.name === 'Shift 3') {
           const currentHour = currentRecord.displayTimestamp.getHours()
           const currentMinute = currentRecord.displayTimestamp.getMinutes()
 
@@ -536,9 +588,7 @@ const MachineDetail = () => {
   const generateTimeMarkers = (shift) => {
     const markers = []
 
-    let startHour,
-      endHour,
-      isNextDay = false
+    let startHour, endHour
 
     if (shift.name === 'Shift 1') {
       startHour = 7
@@ -549,37 +599,28 @@ const MachineDetail = () => {
     } else if (shift.name === 'Shift 3') {
       startHour = 0
       endHour = 7
-      isNextDay = true
     }
 
-    if (shift.name === 'Shift 1' || shift.name === 'Shift 3') {
-      for (let hour = startHour; hour <= endHour; hour++) {
-        const position = ((hour - startHour) / (endHour - startHour)) * 100
-        markers.push({
-          time: `${hour.toString().padStart(2, '0')}:00${isNextDay ? ' (+1)' : ''}`,
-          position: position,
-          minutes: (hour - startHour) * 60,
-        })
-      }
-    } else if (shift.name === 'Shift 2') {
-      for (let hour = startHour; hour <= endHour; hour++) {
-        const position = ((hour - startHour) / (endHour - startHour)) * 100
-        markers.push({
-          time: `${(hour === 24 ? 0 : hour).toString().padStart(2, '0')}:00${hour === 24 ? ' (+1)' : ''}`,
-          position: position,
-          minutes: (hour - startHour) * 60,
-        })
-      }
+    for (let hour = startHour; hour <= endHour; hour++) {
+      const position = ((hour - startHour) / (endHour - startHour)) * 100
+      markers.push({
+        time: `${(hour === 24 ? 0 : hour).toString().padStart(2, '0')}:00`,
+        position: position,
+        minutes: (hour - startHour) * 60,
+      })
     }
 
     return markers
   }
 
-  const getNextDayFormatted = () => {
-    const nextDay = new Date(selectedDate)
-    nextDay.setDate(nextDay.getDate() + 1)
-    return nextDay.toISOString().slice(0, 10)
+  // Calculate the next day for display purposes
+  const getNextDayString = (dateString) => {
+    const date = new Date(dateString)
+    date.setDate(date.getDate() + 1)
+    return date.toISOString().slice(0, 10)
   }
+
+  const nextDayString = getNextDayString(selectedDate)
 
   return (
     <div>
@@ -645,7 +686,7 @@ const MachineDetail = () => {
       </CRow>
 
       <h2>
-        Detail Production - {selectedDate} (Shift 1 & 2) and {getNextDayFormatted()} (Shift 3)
+        Detail Production - {selectedDate} (Shift 1 & 2) & {nextDayString} (Shift 3)
       </h2>
       {machineData && machineData.shifts && (
         <CRow>
@@ -655,10 +696,10 @@ const MachineDetail = () => {
               <CCol md={12} key={index}>
                 <CCard className="mb-3">
                   <CCardHeader className="text-body">
-                    <strong>{shift.name}</strong>
-                    {shift.name === 'Shift 3' && (
-                      <span className="ms-2 text-muted">({getNextDayFormatted()})</span>
-                    )}
+                    <strong>
+                      {shift.name}
+                      {shift.name === 'Shift 3' ? ` (${nextDayString})` : ''}
+                    </strong>
                   </CCardHeader>
                   <CCardBody className="p-4">
                     <div style={gridContainerStyle}>
@@ -709,70 +750,8 @@ const MachineDetail = () => {
           })}
         </CRow>
       )}
-
-      <CCard className="mb-3">
-        <CCardHeader>
-          <strong>Legend</strong>
-        </CCardHeader>
-        <CCardBody>
-          <CRow>
-            <CCol md={3}>
-              <div className="d-flex align-items-center">
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    backgroundColor: 'var(--cui-success)',
-                    marginRight: '10px',
-                  }}
-                ></div>
-                <span>Normal Operation</span>
-              </div>
-            </CCol>
-            <CCol md={3}>
-              <div className="d-flex align-items-center">
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    backgroundColor: 'var(--cui-danger)',
-                    marginRight: '10px',
-                  }}
-                ></div>
-                <span>Chokotei</span>
-              </div>
-            </CCol>
-            <CCol md={3}>
-              <div className="d-flex align-items-center">
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    backgroundColor: 'var(--cui-warning)',
-                    marginRight: '10px',
-                  }}
-                ></div>
-                <span>Tidak Normal</span>
-              </div>
-            </CCol>
-            <CCol md={3}>
-              <div className="d-flex align-items-center">
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    backgroundColor: 'var(--cui-primary)',
-                    marginRight: '10px',
-                  }}
-                ></div>
-                <span>Other Status</span>
-              </div>
-            </CCol>
-          </CRow>
-        </CCardBody>
-      </CCard>
     </div>
   )
 }
 
-export default MachineDetail
+export default DetailProduction
