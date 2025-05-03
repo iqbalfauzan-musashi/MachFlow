@@ -32,6 +32,8 @@ const Cikarang = () => {
 
   // WebSocket reference
   const socketRef = useRef(null)
+  // Auto-update timer reference
+  const timerRef = useRef(null)
 
   // Konversi kode lokasi ke nama untuk URL
   const locationUrlName = location === 'KRW' ? 'karawang' : 'cikarang'
@@ -159,6 +161,20 @@ const Cikarang = () => {
     }
   }
 
+  // Function to request data updates from the server
+  const requestDataUpdate = () => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          type: 'requestUpdate',
+          location: location,
+          lineGroup: selectedLineGroup || '',
+          timestamp: new Date().toISOString(),
+        }),
+      )
+    }
+  }
+
   // Apply filtering based on selected line group
   const applyLineGroupFilter = (machines) => {
     let filteredResults
@@ -220,6 +236,18 @@ const Cikarang = () => {
             }),
           )
         }
+
+        // Setup interval to request data update every second
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+        }
+
+        timerRef.current = setInterval(() => {
+          requestDataUpdate()
+        }, 1000) // Request update every 1 second
+
+        // Request initial update immediately
+        requestDataUpdate()
       }
 
       socket.onmessage = (event) => {
@@ -269,6 +297,12 @@ const Cikarang = () => {
         console.log('WebSocket connection closed:', event.code, event.reason)
         setSocketConnected(false)
 
+        // Clear the auto-update interval
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+
         // Attempt to reconnect after a delay if not closed intentionally
         if (event.code !== 1000) {
           setTimeout(() => {
@@ -281,6 +315,12 @@ const Cikarang = () => {
       socket.onerror = (error) => {
         console.error('WebSocket error:', error)
         setSocketConnected(false)
+
+        // Clear the auto-update interval on error
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
       }
 
       socketRef.current = socket
@@ -288,13 +328,18 @@ const Cikarang = () => {
 
     setupWebSocket()
 
-    // Cleanup WebSocket on component unmount
+    // Cleanup WebSocket and timer on component unmount
     return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+
       if (socketRef.current) {
         socketRef.current.close()
       }
     }
   }, [location])
+
   // Handle line group change
   const handleLineGroupChange = (e) => {
     const lineGroup = e.target.value
@@ -315,19 +360,6 @@ const Cikarang = () => {
     fetchInitialData()
   }
 
-  // Send filter update to WebSocket server
-  const updateFilters = () => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: 'setFilters',
-          location: location,
-          lineGroup: selectedLineGroup,
-        }),
-      )
-    }
-  }
-
   // Update filters when line group changes
   useEffect(() => {
     // Jika socket sudah terhubung, kirim update filter
@@ -339,6 +371,9 @@ const Cikarang = () => {
           lineGroup: selectedLineGroup,
         }),
       )
+
+      // Request immediate update after changing filters
+      requestDataUpdate()
     }
   }, [selectedLineGroup])
 

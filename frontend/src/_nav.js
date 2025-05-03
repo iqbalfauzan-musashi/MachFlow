@@ -65,18 +65,8 @@ const _nav = [
     items: [
       {
         component: CNavItem,
-        name: 'Job List',
-        to: '/maintenance/joblist',
-      },
-      {
-        component: CNavItem,
-        name: 'Inventory',
-        to: '/maintenance/inventory',
-      },
-      {
-        component: CNavItem,
-        name: 'History Job',
-        to: '/maintenance/jobhistory',
+        name: 'Monitoring Pump',
+        to: '/maintenance/pump',
       },
     ],
   },
@@ -87,18 +77,8 @@ const _nav = [
     items: [
       {
         component: CNavItem,
-        name: 'Job List',
-        to: '/ppic/joblist',
-      },
-      {
-        component: CNavItem,
         name: 'Inventory',
-        to: '/ppic/inventory',
-      },
-      {
-        component: CNavItem,
-        name: 'History Job',
-        to: '/ppic/jobhistory',
+        to: '/ppic/inventory1',
       },
     ],
   },
@@ -111,23 +91,6 @@ const _nav = [
   {
     component: CNavTitle,
     name: 'Extras',
-  },
-  {
-    component: CNavGroup,
-    name: 'Tester',
-    icon: <CIcon icon={cilIndustry} customClassName="nav-icon" />,
-    items: [
-      {
-        component: CNavItem,
-        name: 'All Machine Karawang',
-        to: '/karawang/allkarawang',
-      },
-      {
-        component: CNavItem,
-        name: 'SC Camshaft',
-        to: '/karawang/sc_camshaft',
-      },
-    ],
   },
   {
     component: CNavGroup,

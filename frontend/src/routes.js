@@ -1,25 +1,28 @@
 import React from 'react'
+
+// Cikarang Plant
+const Cikarang = React.lazy(() => import('./views/cikarang/Cikarang.js'))
+
 // Karawang Plant
-const AllKarawang = React.lazy(() => import('./views/karawang/allkarawang/AllKarawang.js'))
-const Sc_Camshaft = React.lazy(() => import('./views/karawang/sc_camshaft/Sc_Camshaft.js'))
+const Karawang = React.lazy(() => import('./views/karawang/Karawang.js'))
+
 // Tool Control
 const Tool_Control = React.lazy(() => import('./views/tool_control/Tool_Control.js'))
+
 // Kanagata
 const Kanagata = React.lazy(() => import('./views/kanagata/Kanagata.js'))
-const Cikarang = React.lazy(() => import('./views/cikarang/Cikarang.js'))
-const Karawang = React.lazy(() => import('./views/karawang/Karawang.js'))
+
 // Manufacturing
 const Inventory = React.lazy(() => import('./views/manufacturing/inventory/Inventory.js'))
 const JobList = React.lazy(() => import('./views/manufacturing/joblist/JobList.js'))
 const JobHistory = React.lazy(() => import('./views/manufacturing/jobhistory/JobHistory.js'))
+
 // Maintenance
-const Inventory1 = React.lazy(() => import('./views/maintenance/inventory/Inventory.js'))
-const JobList1 = React.lazy(() => import('./views/maintenance/joblist/JobList.js'))
-const JobHistory1 = React.lazy(() => import('./views/maintenance/jobhistory/JobHistory.js'))
+const Pump = React.lazy(() => import('./views/maintenance/pump/Pump.js'))
+
 // PPIC
-const Inventory2 = React.lazy(() => import('./views/manufacturing/inventory/Inventory.js'))
-const JobList2 = React.lazy(() => import('./views/manufacturing/joblist/JobList.js'))
-const JobHistory2 = React.lazy(() => import('./views/manufacturing/jobhistory/JobHistory.js'))
+const Inventory1 = React.lazy(() => import('./views/ppic/Inventory1.js'))
+
 // Timeline Project
 const Charts = React.lazy(() => import('./views/charts/Charts'))
 
@@ -29,32 +32,33 @@ const DetailProduction = React.lazy(
 )
 
 const routes = [
-  // Make Cikarang the first route for clarity
+  // Cikarang Plant
   { path: '/cikarang', name: 'Cikarang', element: Cikarang, exact: true },
 
   // Karawang Plant
-  { path: '/karawang/allkarawang', name: 'AllKarawang', element: AllKarawang },
-  { path: '/karawang/sc_camshaft', name: 'Sc_Camshaft', element: Sc_Camshaft },
+  { path: '/karawang', name: 'Karawang', element: Karawang },
+
   // Tool Control
   { path: '/tool_control', name: 'Tool_Control', element: Tool_Control },
+
   // Kanagata
   { path: '/kanagata', name: 'Kanagata', element: Kanagata },
-  { path: '/karawang', name: 'Karawang', element: Karawang },
+
   // Manufacturing
   { path: '/manufacturing/inventory', name: 'Inventory', element: Inventory },
   { path: '/manufacturing/jobhistory', name: 'JobHistory', element: JobHistory },
   { path: '/manufacturing/joblist', name: 'JobList', element: JobList },
+
   // Maintenance
-  { path: '/maintenance/inventory', name: 'Inventory', element: Inventory1 },
-  { path: '/maintenance/jobhistory', name: 'JobHistory', element: JobHistory1 },
-  { path: '/maintenance/joblist', name: 'JobList', element: JobList1 },
+  { path: '/maintenance/Pump', name: 'Pump', element: Pump },
+
   // PPIC
-  { path: '/ppic/inventory', name: 'Inventory', element: Inventory2 },
-  { path: '/ppic/jobhistory', name: 'JobHistory', element: JobHistory2 },
-  { path: '/ppic/joblist', name: 'JobList', element: JobList2 },
+  { path: '/ppic/inventory1', name: 'Inventory1', element: Inventory1 },
+
   // Timeline Project
   { path: '/charts', name: 'Charts', element: Charts },
 
+  // Detail Production
   { path: '/cikarang/machine/:name', name: 'DetailProduction', element: DetailProduction },
   { path: '/karawang/machine/:name', name: 'DetailProduction', element: DetailProduction },
 ]
