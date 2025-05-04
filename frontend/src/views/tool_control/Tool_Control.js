@@ -1,163 +1,560 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import axios from 'axios'
 import {
+  CRow,
+  CCol,
   CCard,
   CCardBody,
   CCardHeader,
-  CRow,
-  CCol,
+  CSpinner,
   CProgress,
-  CProgressStacked,
+  CFormSelect,
+  CBadge,
 } from '@coreui/react'
+import { Link } from 'react-router-dom'
+import {
+  getStatusConfig,
+  getLightClass,
+} from '../../../src/components/signalLightConfig/signalLightConfig'
+import '../../scss/signalLightConfig.scss'
+import { getApiUrl, getWebSocketUrl } from '../../utils/apiUtils'
 
-const DetailProduction = () => {
-  // Define shift data with hours and progress values
-  const shifts = [
-    {
-      name: 'Shift 1',
-      hours: [
-        '07:00',
-        '08:00',
-        '09:00',
-        '10:00',
-        '11:00',
-        '12:00',
-        '13:00',
-        '14:00',
-        '15:00',
-        '16:00',
-      ],
-      progressValues: [60],
-      progressValues2: [30],
-      progressValues3: [10],
-    },
-    {
-      name: 'Shift 2',
-      hours: [
-        '16:00',
-        '17:00',
-        '18:00',
-        '19:00',
-        '20:00',
-        '21:00',
-        '22:00',
-        '23:00',
-        '00:00',
-        '01:00',
-      ],
-      progressValues: [50],
-      progressValues2: [5],
-      progressValues3: [20],
-    },
-    {
-      name: 'Shift 3',
-      hours: ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00'],
-      progressValues: [10],
-      progressValues2: [15],
-      progressValues3: [10],
-    },
+// Generate signal light elements based on status config
+const generateSignalLights = (status) => {
+  const config = getStatusConfig(status)
+
+  // Create array of signal light classes
+  return [
+    { color: 'red', class: getLightClass(config.signal.red) },
+    { color: 'yellow', class: getLightClass(config.signal.yellow) },
+    { color: 'green', class: getLightClass(config.signal.green) },
+    { color: 'blue', class: 'light-off' }, // Keep blue light off
+    { color: 'white', class: 'light-off' }, // Keep white light off
   ]
+}
 
-  const gridContainerStyle = {
-    position: 'relative',
-    width: '100%',
-    marginBottom: '5px',
-    padding: '0',
-    height: '120px',
+const Cikarang = () => {
+  const [machineNames, setMachineNames] = useState([])
+  const [lineGroups, setLineGroups] = useState([])
+  const [selectedLineGroup, setSelectedLineGroup] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [filteredMachines, setFilteredMachines] = useState([])
+  const [location] = useState('CKR')
+  const [lastUpdate, setLastUpdate] = useState(new Date())
+  const [socketConnected, setSocketConnected] = useState(false)
+
+  // WebSocket reference
+  const socketRef = useRef(null)
+  // Auto-update timer reference
+  const timerRef = useRef(null)
+
+  // Konversi kode lokasi ke nama untuk URL
+  const locationUrlName =
+    location === 'CKR' ? 'cikarang' : location === 'KRW' ? 'karawang' : 'unknown'
+
+  // Fetch line groups once
+  useEffect(() => {
+    const fetchLineGroups = async () => {
+      try {
+        const response = await axios.get(getApiUrl(`machine-names/${location}/line-groups`))
+        setLineGroups(response.data.map((group) => group.LINE_GROUP))
+      } catch (err) {
+        console.error('Error fetching line groups:', err)
+        setError(err)
+      }
+    }
+
+    fetchLineGroups()
+  }, [location])
+
+  // Initial data fetch
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true)
+
+      // Coba ambil data dari cache terlebih dahulu
+      const cachedDataKey = `machineData-${location}-${selectedLineGroup || 'all'}`
+      const cachedData = localStorage.getItem(cachedDataKey)
+
+      if (cachedData) {
+        try {
+          const parsedData = JSON.parse(cachedData)
+          const cacheTime = localStorage.getItem(`${cachedDataKey}-timestamp`)
+          const cacheAge = cacheTime ? Date.now() - parseInt(cacheTime) : 0
+
+          // Gunakan cache jika umurnya kurang dari 5 menit
+          if (cacheAge < 5 * 60 * 1000) {
+            setMachineNames(parsedData)
+            applyLineGroupFilter(parsedData)
+            setLoading(false)
+            console.log('Menggunakan data cache')
+          }
+        } catch (e) {
+          console.error('Error parsing cached data:', e)
+        }
+      }
+
+      // Pertama ambil dulu data nama mesin untuk UI dasar
+      const machineResponse = await axios.get(getApiUrl(`machine-names/${location}`), {
+        params: selectedLineGroup ? { lineGroup: selectedLineGroup } : undefined,
+      })
+
+      // Transform data mesin dengan nilai default
+      const basicMachineData = machineResponse.data.map((machine) => {
+        return {
+          no_mesin: machine.MACHINE_CODE,
+          mesin: machine.MACHINE_NAME,
+          lineGroup: machine.LINE_GROUP,
+          status: 'Loading...',
+          message: 'Loading...',
+          Plan: 0,
+          actual: 0,
+          performance: '0%',
+          startTime: new Date(),
+          statusConfig: getStatusConfig('Shutdown'),
+        }
+      })
+
+      // Tampilkan basic UI mesin segera
+      setMachineNames(basicMachineData)
+      applyLineGroupFilter(basicMachineData)
+      setLoading(false)
+
+      // Kemudian ambil data history
+      const historyResponse = await axios.get(getApiUrl(`machine-history/${location}`), {
+        params: selectedLineGroup ? { lineGroup: selectedLineGroup } : undefined,
+      })
+
+      // Update dengan data lengkap
+      const transformedData = machineResponse.data.map((machine) => {
+        // Find the most recent history record for this machine
+        const machineHistory =
+          historyResponse.data
+            .filter((history) => history.MachineCode === machine.MACHINE_CODE)
+            .sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt))[0] || {}
+
+        const statusConfig = getStatusConfig(machineHistory.OPERATION_NAME || 'Shutdown')
+        if (
+          statusConfig.headerColor === '#666' ||
+          statusConfig.headerColor === 'rgb(102, 102, 102)'
+        ) {
+          // Ganti dengan warna default yang lebih baik (misalnya biru)
+          statusConfig.headerColor = '#0d6efd' // warna biru bootstrap
+          statusConfig.borderColor = '#0d6efd'
+        }
+        // Calculate performance metrics
+        const actual = machineHistory.MACHINE_COUNTER || 0
+        const plan = 1000 // You may want to define a way to get planned production
+        const performance = plan > 0 ? Math.round((actual / plan) * 100) : 0
+
+        return {
+          no_mesin: machine.MACHINE_CODE,
+          mesin: machine.MACHINE_NAME,
+          lineGroup: machine.LINE_GROUP,
+          status: machineHistory.OPERATION_NAME || 'Shutdown',
+          message: statusConfig.displayName,
+          Plan: plan,
+          actual: actual,
+          performance: `${performance}%`,
+          startTime: machineHistory.CreatedAt,
+          statusConfig: statusConfig,
+        }
+      })
+
+      // Simpan ke cache
+      localStorage.setItem(cachedDataKey, JSON.stringify(transformedData))
+      localStorage.setItem(`${cachedDataKey}-timestamp`, Date.now().toString())
+
+      setMachineNames(transformedData)
+      applyLineGroupFilter(transformedData)
+      setLastUpdate(new Date())
+    } catch (err) {
+      console.error('Error fetching initial machine data:', err)
+      setError(err)
+      setLoading(false)
+    }
   }
 
-  const gridLineStyle = {
-    position: 'absolute',
-    top: 25,
-    bottom: 25,
-    width: '2px',
-    backgroundColor: 'rgba(200, 200, 200, 0.5)',
-    zIndex: 1,
+  // Function to request data updates from the server
+  const requestDataUpdate = () => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          type: 'requestUpdate',
+          location: location,
+          lineGroup: selectedLineGroup || '',
+          timestamp: new Date().toISOString(),
+        }),
+      )
+    }
   }
 
-  const timeTextStyle = {
-    position: 'absolute',
-    transform: 'translateX(-50%)',
-    width: 'auto',
-    fontSize: '0.9rem',
-    padding: '0 5px',
+  // Apply filtering based on selected line group
+  const applyLineGroupFilter = (machines) => {
+    let filteredResults
+
+    if (selectedLineGroup === '') {
+      filteredResults = machines
+    } else {
+      filteredResults = machines.filter((machine) => machine.lineGroup === selectedLineGroup)
+    }
+
+    // Preserve existing status configs when possible
+    if (filteredMachines.length > 0) {
+      filteredResults = filteredResults.map((newMachine) => {
+        // Find matching machine in current filtered list
+        const existingMachine = filteredMachines.find((m) => m.no_mesin === newMachine.no_mesin)
+
+        // If found and status hasn't changed, keep existing statusConfig
+        if (existingMachine && existingMachine.status === newMachine.status) {
+          return {
+            ...newMachine,
+            statusConfig: existingMachine.statusConfig,
+          }
+        }
+
+        return newMachine
+      })
+    }
+
+    setFilteredMachines(filteredResults)
   }
 
-  // Updated progress container style with height property for thicker bars
-  const progressContainerStyle = {
-    position: 'absolute',
-    left: '0',
-    right: '0',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    zIndex: 2,
-    padding: '0',
-    height: '32px', // Added height for thicker progress bars
+  // Setup WebSocket connection
+  useEffect(() => {
+    // Fetch initial data first
+    fetchInitialData()
+
+    // Establish WebSocket connection
+    const setupWebSocket = () => {
+      // Build WebSocket URL hanya dengan parameter location (tanpa lineGroup)
+      let wsUrl = getWebSocketUrl(`ws/machines?location=${location}`)
+
+      if (socketRef.current) {
+        socketRef.current.close()
+      }
+
+      const socket = new WebSocket(wsUrl)
+
+      socket.onopen = () => {
+        console.log('WebSocket connection established')
+        setSocketConnected(true)
+
+        // Setelah koneksi terbuka, kirim filter lineGroup jika ada
+        if (selectedLineGroup) {
+          socket.send(
+            JSON.stringify({
+              type: 'setFilters',
+              location: location,
+              lineGroup: selectedLineGroup,
+            }),
+          )
+        }
+
+        // Setup interval to request data update every second
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+        }
+
+        timerRef.current = setInterval(() => {
+          requestDataUpdate()
+        }, 1000) // Request update every 1 second
+
+        // Request initial update immediately
+        requestDataUpdate()
+      }
+
+      socket.onmessage = (event) => {
+        try {
+          const messageData = JSON.parse(event.data)
+
+          // Check if this is a machineData message
+          if (messageData.type === 'machineData') {
+            // Make sure each machine has a valid statusConfig with correct colors
+            const updatedData = messageData.data.map((machine) => {
+              // Use existing statusConfig when possible
+              const existingMachine = machineNames.find((m) => m.no_mesin === machine.no_mesin)
+
+              // Always get fresh statusConfig (never use gray color)
+              const freshStatusConfig = getStatusConfig(machine.status)
+
+              // Merge with existing config if status hasn't changed
+              if (
+                existingMachine &&
+                existingMachine.status === machine.status &&
+                existingMachine.statusConfig &&
+                existingMachine.statusConfig.headerColor !== '#666' &&
+                existingMachine.statusConfig.headerColor !== 'rgb(102, 102, 102)'
+              ) {
+                return {
+                  ...machine,
+                  statusConfig: existingMachine.statusConfig,
+                }
+              }
+
+              return {
+                ...machine,
+                statusConfig: freshStatusConfig,
+              }
+            })
+
+            setMachineNames(updatedData)
+            applyLineGroupFilter(updatedData)
+            setLastUpdate(new Date(messageData.timestamp))
+          }
+        } catch (error) {
+          console.error('Error processing WebSocket message:', error)
+        }
+      }
+
+      socket.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason)
+        setSocketConnected(false)
+
+        // Clear the auto-update interval
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+
+        // Attempt to reconnect after a delay if not closed intentionally
+        if (event.code !== 1000) {
+          setTimeout(() => {
+            console.log('Attempting to reconnect WebSocket...')
+            setupWebSocket()
+          }, 3000)
+        }
+      }
+
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        setSocketConnected(false)
+
+        // Clear the auto-update interval on error
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+      }
+
+      socketRef.current = socket
+    }
+
+    setupWebSocket()
+
+    // Cleanup WebSocket and timer on component unmount
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+
+      if (socketRef.current) {
+        socketRef.current.close()
+      }
+    }
+  }, [location])
+
+  // Handle line group change
+  const handleLineGroupChange = (e) => {
+    const lineGroup = e.target.value
+    setSelectedLineGroup(lineGroup)
+
+    // Langsung terapkan filter lokal untuk UX yang lebih responsif
+    if (machineNames.length > 0) {
+      if (lineGroup === '') {
+        setFilteredMachines(machineNames)
+      } else {
+        setFilteredMachines(machineNames.filter((machine) => machine.lineGroup === lineGroup))
+      }
+    }
+  }
+
+  // Manual refresh function
+  const handleManualRefresh = () => {
+    fetchInitialData()
+  }
+
+  // Update filters when line group changes
+  useEffect(() => {
+    // Jika socket sudah terhubung, kirim update filter
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          type: 'setFilters',
+          location: location,
+          lineGroup: selectedLineGroup,
+        }),
+      )
+
+      // Request immediate update after changing filters
+      requestDataUpdate()
+    }
+  }, [selectedLineGroup])
+
+  // Error handling
+  if (error) {
+    return (
+      <CRow>
+        <CCol className="text-center text-danger">
+          Error loading machine names: {error.message}
+          <div className="mt-3">
+            <button className="btn btn-primary" onClick={handleManualRefresh}>
+              Retry
+            </button>
+          </div>
+        </CCol>
+      </CRow>
+    )
   }
 
   return (
-    <div>
-      {/* Added styles for thicker progress bars */}
-      <style>
-        {`
-          .progress-stacked {
-            height: 32px !important;
-          }
-          .progress-stacked .progress {
-            height: 32px !important;
-          }
-          .progress-stacked .progress-bar {
-            height: 32px !important;
-            font-size: 1rem !important;
-          }
-        `}
-      </style>
-
-      {/* Production details section */}
-      <h2>Detail Production</h2>
-      <CRow>
-        {shifts.map((shift, index) => (
-          <CCol md={12} key={index}>
-            <CCard className="mb-3">
-              <CCardHeader className="text-body">
-                <strong>{shift.name}</strong>
-              </CCardHeader>
-              <CCardBody className="p-4">
-                <div style={gridContainerStyle}>
-                  {shift.hours.map((hour, index) => {
-                    const position = `${(100 * index) / (shift.hours.length - 1)}%`
-                    return (
-                      <React.Fragment key={index}>
-                        <span style={{ ...timeTextStyle, top: '0', left: position }}>{hour}</span>
-                        <div style={{ ...gridLineStyle, left: position }} />
-                        <span style={{ ...timeTextStyle, bottom: '0', left: position }}>
-                          {index * 10}
-                        </span>
-                      </React.Fragment>
-                    )
-                  })}
-
-                  {/* Progress bar with updated positioning */}
-                  <div style={progressContainerStyle}>
-                    <CProgressStacked className="progress-stacked">
-                      {shift.progressValues.map((value, valueIndex) => (
-                        <CProgress key={valueIndex} color="success" value={value} />
-                      ))}
-                      {shift.progressValues2.map((value, valueIndex) => (
-                        <CProgress key={`2-${valueIndex}`} color="danger" value={value} />
-                      ))}
-                      {shift.progressValues3.map((value, valueIndex) => (
-                        <CProgress key={`3-${valueIndex}`} color="warning" value={value} />
-                      ))}
-                    </CProgressStacked>
-                  </div>
-                </div>
-              </CCardBody>
-            </CCard>
-          </CCol>
-        ))}
+    <>
+      <CRow className="mb-3">
+        <CCol md={6}>
+          <h2>Cikarang Machine Monitor</h2>
+        </CCol>
+        <CCol md={6} className="text-end">
+          <div className="d-flex justify-content-end align-items-center">
+            <CBadge
+              color={socketConnected ? 'success' : 'danger'}
+              shape="rounded-pill"
+              className="me-3 px-3 py-2"
+            >
+              {socketConnected ? 'Connected' : 'Disconnected'}
+            </CBadge>
+            <span className="me-3">Last updated: {lastUpdate.toLocaleTimeString()}</span>
+            <button
+              className="btn btn-outline-primary"
+              onClick={handleManualRefresh}
+              disabled={loading}
+            >
+              {loading ? <CSpinner size="sm" /> : <span>↻ Refresh</span>}
+            </button>
+          </div>
+        </CCol>
       </CRow>
-    </div>
+
+      <CRow className="mb-3 align-items-center">
+        <CCol md={4}>
+          <CFormSelect value={selectedLineGroup} onChange={handleLineGroupChange}>
+            <option value="">All Line Groups</option>
+            {lineGroups.map((group, index) => (
+              <option key={index} value={group}>
+                {group}
+              </option>
+            ))}
+          </CFormSelect>
+        </CCol>
+        <CCol md={8} className="text-end">
+          <CBadge color="primary" shape="rounded-pill" className="px-3 py-2">
+            Total Machines: {filteredMachines.length}
+          </CBadge>
+        </CCol>
+      </CRow>
+
+      {/* Main Content Area */}
+      {loading && filteredMachines.length === 0 ? (
+        <CRow>
+          <CCol className="text-center">
+            <CSpinner color="primary" />
+          </CCol>
+        </CRow>
+      ) : (
+        <CRow className="d-flex align-items-stretch">
+          {filteredMachines.map((data, index) => {
+            // Get the status configuration
+            const statusConfig = data.statusConfig || getStatusConfig(data.status)
+            const { borderColor, headerColor } = statusConfig
+
+            // Generate signal lights
+            const signalLights = generateSignalLights(data.status)
+
+            // Calculate progress
+            const progress = data.actual ? Math.min((data.actual / (data.Plan || 1)) * 100, 100) : 0
+
+            return (
+              <CCol md={2} sm={2} className="mb-4 px-2" key={index}>
+                <CCard className="machine-card-wrapper mb-4" style={{ borderColor }}>
+                  <CCardHeader
+                    className="machine-card-header"
+                    style={{ backgroundColor: headerColor }}
+                  >
+                    <Link
+                      to={`/${locationUrlName}/machine/${encodeURIComponent(data.no_mesin)}`}
+                      style={{
+                        color: 'white',
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textTransform: 'uppercase',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <strong className="machine-code">{data.no_mesin}</strong>
+                      <span className="machine-name">{data.mesin}</span>
+                    </Link>
+                  </CCardHeader>
+
+                  <CCardBody className="machine-card-body">
+                    <div className="status-message">
+                      <strong
+                        title={
+                          data.startTime
+                            ? `Last updated: ${new Date(data.startTime).toLocaleString()}`
+                            : ''
+                        }
+                      >
+                        {data.message}
+                      </strong>
+                    </div>
+
+                    <div className="machine-info-container">
+                      <div className="signal-tower">
+                        {signalLights.map((light, i) => {
+                          const signalClass = `signal signal-${light.color} ${light.class}`
+
+                          // Add blinking class for normal operation green light
+                          const isGreenLight = light.color === 'green'
+                          const isNormalOperation = data.status.toLowerCase() === 'normal operation'
+                          const blinkingClass = isNormalOperation && isGreenLight ? 'blinking' : ''
+
+                          return <div key={i} className={`${signalClass} ${blinkingClass}`} />
+                        })}
+                      </div>
+
+                      <div className="machine-details">
+                        <p>
+                          <strong>No. Mesin:</strong> {data.no_mesin}
+                        </p>
+                        <p>
+                          <strong>Plan:</strong> {data.Plan}
+                        </p>
+                        <div className="metric-container">
+                          <strong>Actual:</strong> {data.actual}
+                          <CProgress height={10} value={progress} />
+                        </div>
+                        <div className="metric-container">
+                          <strong>Performance:</strong> {data.performance}
+                          <CProgress
+                            height={10}
+                            value={parseFloat(data.performance.replace('%', ''))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
+            )
+          })}
+        </CRow>
+      )}
+    </>
   )
 }
 
-export default DetailProduction
+export default Cikarang

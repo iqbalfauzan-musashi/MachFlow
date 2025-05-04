@@ -53,477 +53,384 @@ export const COLORS = {
   BLACK: '#000',
 }
 
-// Constants for signal patterns
-export const SIGNAL_PATTERNS = {
-  RED: 'signal-red',
-  YELLOW: 'signal-yellow',
-  GREEN: 'signal-green',
-  BLUE: 'signal-blue',
-  WHITE: 'signal-white',
-  DARK_RED: 'signal-dark-red',
-  DARK_YELLOW: 'signal-dark-yellow',
-  DARK_GREEN: 'signal-dark-green',
-  DARK_BLUE: 'signal-dark-blue',
-  DARK_WHITE: 'signal-dark-white',
+// Signal light state constants
+export const LIGHT_STATE = {
+  OFF: 0,
+  ON: 1,
+  BLINKING: 2,
 }
 
-// Constants for animations
-export const ANIMATIONS = {
-  BLINKING: 'blinking',
-  SLOW_BLINKING: 'slow-blinking',
-  ALTERNATING: 'alternating',
-}
-
-// Helper function to create signal with animation
-const createSignal = (baseSignal, animation = null) => {
-  return animation ? `${baseSignal} ${animation}` : baseSignal
-}
-
-// Status configuration map
+// New status configuration map based on the provided format
 const STATUS_CONFIG_MAP = {
   [MACHINE_STATUSES.MACHINE_OFF]: {
     borderColor: COLORS.DANGER,
     headerColor: COLORS.DANGER,
-    signal: [
-      SIGNAL_PATTERNS.RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Machine Off',
   },
   [MACHINE_STATUSES.TROUBLE_MACHINE]: {
     borderColor: COLORS.DANGER,
     headerColor: COLORS.DANGER,
-    signal: [
-      createSignal(SIGNAL_PATTERNS.RED, ANIMATIONS.BLINKING),
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Trouble Machine',
   },
   [MACHINE_STATUSES.CHOKOTEI]: {
     borderColor: COLORS.WARNING,
     headerColor: COLORS.WARNING,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Chokotei',
   },
   [MACHINE_STATUSES.DANDORI]: {
     borderColor: COLORS.WARNING,
     headerColor: COLORS.WARNING,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.BLINKING),
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.BLINKING,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Dandori',
   },
   [MACHINE_STATUSES.STOP_PLANNING]: {
     borderColor: COLORS.INFO,
     headerColor: COLORS.INFO,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.BLINKING,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Stop Planning',
   },
   [MACHINE_STATUSES.TOOL_CHANGES]: {
     borderColor: COLORS.INFO,
     headerColor: COLORS.INFO,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.BLINKING),
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Tool Changes',
   },
   [MACHINE_STATUSES.WAITING_MATERIAL]: {
     borderColor: COLORS.SECONDARY,
     headerColor: COLORS.SECONDARY,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.BLINKING),
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Waiting Material',
   },
   [MACHINE_STATUSES.CONTROL_LOSS_TIME]: {
     borderColor: COLORS.SECONDARY,
     headerColor: COLORS.SECONDARY,
-    signal: [
-      createSignal(SIGNAL_PATTERNS.RED, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.ALTERNATING),
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Control Loss Time',
   },
   [MACHINE_STATUSES.UNKNOWN_LOSS_TIME]: {
     borderColor: COLORS.SECONDARY,
     headerColor: COLORS.SECONDARY,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.ALTERNATING),
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Unknown Loss Time',
   },
   [MACHINE_STATUSES.NORMAL_OPERATION]: {
     borderColor: COLORS.SUCCESS,
     headerColor: COLORS.SUCCESS,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.BLINKING),
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Normal Operation',
   },
   [MACHINE_STATUSES.TENKEN]: {
     borderColor: COLORS.SUCCESS,
     headerColor: COLORS.SUCCESS,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Tenken',
   },
   [MACHINE_STATUSES.NOT_CONNECTED]: {
     borderColor: COLORS.DANGER,
     headerColor: COLORS.DANGER,
-    signal: [
-      createSignal(SIGNAL_PATTERNS.RED, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Not Connected',
   },
   [MACHINE_STATUSES.JAM_ISTIRAHAT]: {
     borderColor: COLORS.SECONDARY,
     headerColor: COLORS.SECONDARY,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Jam Istirahat',
   },
   [MACHINE_STATUSES.RENCANA_PERBAIKAN]: {
     borderColor: COLORS.SECONDARY,
     headerColor: COLORS.SECONDARY,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_BLUE,
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.ALTERNATING),
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Rencana Perbaikan',
   },
   [MACHINE_STATUSES.TRIAL]: {
     borderColor: COLORS.WARNING,
     headerColor: COLORS.WARNING,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Trial',
   },
   [MACHINE_STATUSES.PLAN_PROSES_SELESAI]: {
     borderColor: COLORS.SUCCESS,
     headerColor: COLORS.SUCCESS,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.BLINKING,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Plan Proses Selesai',
   },
   [MACHINE_STATUSES.FIVE_S]: {
     borderColor: COLORS.INFO,
     headerColor: COLORS.INFO,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_GREEN,
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.ON,
+    },
     displayName: '5S',
   },
   [MACHINE_STATUSES.MEETING_PAGI_SORE]: {
     borderColor: COLORS.INFO,
     headerColor: COLORS.INFO,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.ALTERNATING),
-    ],
+    signal: {
+      red: LIGHT_STATE.BLINKING,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Meeting Pagi/Sore',
   },
   [MACHINE_STATUSES.PEMANASAN]: {
     borderColor: COLORS.WARNING,
     headerColor: COLORS.WARNING,
-    signal: [
-      createSignal(SIGNAL_PATTERNS.RED, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Pemanasan',
   },
   [MACHINE_STATUSES.CEK_QC]: {
     borderColor: COLORS.INFO,
     headerColor: COLORS.INFO,
-    signal: [
-      createSignal(SIGNAL_PATTERNS.RED, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Cek QC',
   },
   [MACHINE_STATUSES.INPUT_DATA]: {
     borderColor: COLORS.INFO,
     headerColor: COLORS.INFO,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Input Data',
   },
   [MACHINE_STATUSES.BUANG_KIRIKO]: {
     borderColor: COLORS.DANGER,
     headerColor: COLORS.DANGER,
-    signal: [
-      createSignal(SIGNAL_PATTERNS.RED, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.BLINKING,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Buang Kiriko',
   },
   [MACHINE_STATUSES.MENUNGGU_INTRUKSI_ATASAN]: {
     borderColor: COLORS.SECONDARY,
     headerColor: COLORS.SECONDARY,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.SLOW_BLINKING),
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Menunggu Intruksi Atasan',
   },
   [MACHINE_STATUSES.REPAIR]: {
     borderColor: COLORS.DANGER,
     headerColor: COLORS.DANGER,
-    signal: [
-      createSignal(SIGNAL_PATTERNS.RED, ANIMATIONS.SLOW_BLINKING),
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Repair',
   },
   [MACHINE_STATUSES.KAIZEN]: {
     borderColor: COLORS.SUCCESS,
     headerColor: COLORS.SUCCESS,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.ALTERNATING),
-    ],
+    signal: {
+      red: LIGHT_STATE.BLINKING,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Kaizen',
   },
   [MACHINE_STATUSES.GANTI_TOISHI]: {
     borderColor: COLORS.WARNING,
     headerColor: COLORS.WARNING,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.SLOW_BLINKING),
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.BLINKING,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Ganti Toishi',
   },
   [MACHINE_STATUSES.GANTI_DRESSER]: {
     borderColor: COLORS.INFO,
     headerColor: COLORS.INFO,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.SLOW_BLINKING),
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Ganti Dresser',
   },
   [MACHINE_STATUSES.ONE_TOOTH]: {
     borderColor: COLORS.SUCCESS,
     headerColor: COLORS.SUCCESS,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.ON,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: '1 Tooth',
   },
   [MACHINE_STATUSES.CHECK_HAGATA]: {
     borderColor: COLORS.SUCCESS,
     headerColor: COLORS.SUCCESS,
-    signal: [
-      createSignal(SIGNAL_PATTERNS.RED, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Check Hagata',
   },
   [MACHINE_STATUSES.DRESSING_PROFILE]: {
     borderColor: COLORS.WARNING,
     headerColor: COLORS.WARNING,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_GREEN,
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.BLINKING,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Dressing Profile',
   },
   [MACHINE_STATUSES.DRESS_2]: {
     borderColor: COLORS.WARNING,
     headerColor: COLORS.WARNING,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      createSignal(SIGNAL_PATTERNS.YELLOW, ANIMATIONS.ALTERNATING),
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.ALTERNATING),
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Dress-2',
   },
   [MACHINE_STATUSES.ANTRI_JOB]: {
     borderColor: COLORS.SECONDARY,
     headerColor: COLORS.SECONDARY,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      createSignal(SIGNAL_PATTERNS.GREEN, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.BLUE, ANIMATIONS.ALTERNATING),
-      createSignal(SIGNAL_PATTERNS.WHITE, ANIMATIONS.ALTERNATING),
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Antri Job',
   },
   // Backward compatibility
   [MACHINE_STATUSES.MAINTENANCE]: {
     borderColor: COLORS.CUSTOM_PINK,
     headerColor: COLORS.CUSTOM_PINK,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.BLINKING,
+    },
     displayName: 'Maintenance',
   },
   [MACHINE_STATUSES.QUALITY_CHECK]: {
     borderColor: COLORS.WARNING,
     headerColor: COLORS.WARNING,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.YELLOW,
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.ON,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Quality Check',
   },
   [MACHINE_STATUSES.IDLE_TIME]: {
     borderColor: COLORS.CUSTOM_PURPLE,
     headerColor: COLORS.CUSTOM_PURPLE,
-    signal: [
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.BLINKING,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Idle Time',
   },
   [MACHINE_STATUSES.PRODUCTION]: {
     borderColor: COLORS.SUCCESS,
     headerColor: COLORS.SUCCESS,
-    signal: [
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.GREEN,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.DARK_WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.ON,
+    },
     displayName: 'Production',
   },
   [MACHINE_STATUSES.SHUTDOWN]: {
     borderColor: COLORS.SECONDARY,
     headerColor: COLORS.SECONDARY,
-    signal: [
-      SIGNAL_PATTERNS.DARK_GREEN,
-      SIGNAL_PATTERNS.DARK_YELLOW,
-      SIGNAL_PATTERNS.DARK_RED,
-      SIGNAL_PATTERNS.DARK_BLUE,
-      SIGNAL_PATTERNS.WHITE,
-    ],
+    signal: {
+      red: LIGHT_STATE.OFF,
+      yellow: LIGHT_STATE.OFF,
+      green: LIGHT_STATE.OFF,
+    },
     displayName: 'Shutdown',
   },
 }
@@ -532,13 +439,11 @@ const STATUS_CONFIG_MAP = {
 const DEFAULT_CONFIG = {
   borderColor: COLORS.BLACK,
   headerColor: COLORS.BLACK,
-  signal: [
-    SIGNAL_PATTERNS.DARK_RED,
-    SIGNAL_PATTERNS.DARK_YELLOW,
-    SIGNAL_PATTERNS.DARK_GREEN,
-    SIGNAL_PATTERNS.DARK_BLUE,
-    SIGNAL_PATTERNS.DARK_WHITE,
-  ],
+  signal: {
+    red: LIGHT_STATE.OFF,
+    yellow: LIGHT_STATE.OFF,
+    green: LIGHT_STATE.OFF,
+  },
   displayName: 'Unknown',
 }
 
@@ -551,11 +456,17 @@ export const getStatusConfig = (status) => {
   return STATUS_CONFIG_MAP[normalizedStatus] || { ...DEFAULT_CONFIG, displayName: status }
 }
 
-// Generate default signal array for machines without status
-export const generateDefaultSignal = (status) => {
-  const config = getStatusConfig(status)
-  // Return the signal array from the status configuration
-  return config.signal
+// Generate CSS class names based on light state
+export const getLightClass = (state) => {
+  switch (state) {
+    case LIGHT_STATE.ON:
+      return 'light-on'
+    case LIGHT_STATE.BLINKING:
+      return 'light-blinking'
+    case LIGHT_STATE.OFF:
+    default:
+      return 'light-off'
+  }
 }
 
 // Add CSS classes for the signal states
@@ -571,29 +482,17 @@ export const addSignalStylesheet = () => {
         50%, 100% { opacity: 0.3; }
       }
       
-      /* Slow blinking animation */
-      @keyframes slow-blink {
-        0%, 74% { opacity: 1; }
-        75%, 100% { opacity: 0.3; }
-      }
-      
-      /* Alternating animation */
-      @keyframes alternate {
-        0%, 49% { opacity: 1; }
-        50%, 100% { opacity: 0.3; }
-      }
-      
       /* Apply animations to elements */
-      .${ANIMATIONS.BLINKING} {
+      .light-blinking {
         animation: blink 1s infinite;
       }
       
-      .${ANIMATIONS.SLOW_BLINKING} {
-        animation: slow-blink 2s infinite;
+      .light-on {
+        opacity: 1;
       }
       
-      .${ANIMATIONS.ALTERNATING} {
-        animation: alternate 1.5s infinite;
+      .light-off {
+        opacity: 0.3;
       }
     `
     document.head.appendChild(stylesheet)
@@ -603,4 +502,18 @@ export const addSignalStylesheet = () => {
 // Initialize CSS when module is imported
 if (typeof document !== 'undefined') {
   addSignalStylesheet()
+}
+
+// Helper function to render the signal light based on status
+export const renderSignalLight = (status) => {
+  const config = getStatusConfig(status)
+
+  return {
+    redClass: getLightClass(config.signal.red),
+    yellowClass: getLightClass(config.signal.yellow),
+    greenClass: getLightClass(config.signal.green),
+    displayName: config.displayName,
+    borderColor: config.borderColor,
+    headerColor: config.headerColor,
+  }
 }

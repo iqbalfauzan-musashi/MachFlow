@@ -14,10 +14,24 @@ import {
 import { Link } from 'react-router-dom'
 import {
   getStatusConfig,
-  generateDefaultSignal,
+  getLightClass,
 } from '../../../src/components/signalLightConfig/signalLightConfig'
 import '../../scss/signalLightConfig.scss'
 import { getApiUrl, getWebSocketUrl } from '../../utils/apiUtils'
+
+// Generate signal light elements based on status config
+const generateSignalLights = (status) => {
+  const config = getStatusConfig(status)
+
+  // Create array of signal light classes
+  return [
+    { color: 'red', class: getLightClass(config.signal.red) },
+    { color: 'yellow', class: getLightClass(config.signal.yellow) },
+    { color: 'green', class: getLightClass(config.signal.green) },
+    { color: 'blue', class: 'light-off' }, // Keep blue light off
+    { color: 'white', class: 'light-off' }, // Keep white light off
+  ]
+}
 
 const Cikarang = () => {
   const [machineNames, setMachineNames] = useState([])
@@ -36,7 +50,8 @@ const Cikarang = () => {
   const timerRef = useRef(null)
 
   // Konversi kode lokasi ke nama untuk URL
-  const locationUrlName = location === 'KRW' ? 'karawang' : 'cikarang'
+  const locationUrlName =
+    location === 'CKR' ? 'cikarang' : location === 'KRW' ? 'karawang' : 'unknown'
 
   // Fetch line groups once
   useEffect(() => {
@@ -448,10 +463,14 @@ const Cikarang = () => {
       ) : (
         <CRow className="d-flex align-items-stretch">
           {filteredMachines.map((data, index) => {
-            // Existing machine card rendering code
+            // Get the status configuration
             const statusConfig = data.statusConfig || getStatusConfig(data.status)
             const { borderColor, headerColor } = statusConfig
-            const signalClasses = generateDefaultSignal(data.status)
+
+            // Generate signal lights
+            const signalLights = generateSignalLights(data.status)
+
+            // Calculate progress
             const progress = data.actual ? Math.min((data.actual / (data.Plan || 1)) * 100, 100) : 0
 
             return (
@@ -495,16 +514,15 @@ const Cikarang = () => {
 
                     <div className="machine-info-container">
                       <div className="signal-tower">
-                        {signalClasses.map((signalClass, i) => {
-                          const isGreenLight = i === 2
-                          const isNormalOperation = data.status.toLowerCase() === 'normal operation'
+                        {signalLights.map((light, i) => {
+                          const signalClass = `signal signal-${light.color} ${light.class}`
 
-                          return (
-                            <div
-                              key={i}
-                              className={`signal ${signalClass} ${isNormalOperation && isGreenLight ? 'blinking' : ''}`}
-                            />
-                          )
+                          // Add blinking class for normal operation green light
+                          const isGreenLight = light.color === 'green'
+                          const isNormalOperation = data.status.toLowerCase() === 'normal operation'
+                          const blinkingClass = isNormalOperation && isGreenLight ? 'blinking' : ''
+
+                          return <div key={i} className={`${signalClass} ${blinkingClass}`} />
                         })}
                       </div>
 

@@ -1,0 +1,56 @@
+.progress-grid-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 5px;
+  padding: 0;
+  height: 120px;
+}
+
+.grid-line {
+  position: absolute;
+  top: 25px;
+  bottom: 25px;
+  width: 2px;
+  background-color: rgba(200, 200, 200, 0.5);
+  z-index: 1;
+}
+
+.time-text {
+  position: absolute;
+  transform: translateX(-50%);
+  width: auto;
+  font-size: 0.9rem;
+  padding: 0 5px;
+
+  &.top {
+    top: 0;
+  }
+
+  &.bottom {
+    bottom: 0;
+  }
+}
+
+.progress-container {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  padding: 0;
+  height: 32px;
+}
+
+// Overriding CoreUI progress styles
+.c-progress {
+  height: 32px !important;
+}
+
+.c-progress-bar {
+  height: 32px !important;
+}
+
+.c-progress-stacked {
+  height: 32px !important;
+}

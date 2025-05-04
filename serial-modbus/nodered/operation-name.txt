@@ -1,0 +1,49 @@
+    0 = OFF
+    1 = ON
+    2 = blinking
+
+    | Status | Keterangan        | Merah | Kuning | Hijau |
+    | ------ | ----------------- | ----- | ------ | ----- |
+    | 0      | MACHINE OFF       | 0     | 0      | 0     |
+    | 1      | TROUBLE MACHINE   | 1     | 1      | 0     |
+    | 2      | CHOKOTEI          | 0     | 2      | 1     |
+    | 3      | DANDORI           | 2     | 1      | 0     |
+    | 4      | STOP PLANNING     | 2     | 0      | 1     |
+    | 5      | TOOL CHANGES      | 0     | 1      | 2     |
+    | 7      | WAITING MATERIAL  | 0     | 0      | 2     |
+    | 8      | CONTROL LOSS TIME | 0     | 1      | 0     |
+    | 9      | UNKNOWN LOSS TIME | 1     | 0      | 0     |
+    | 10     | NORMAL OPERATION  | 0     | 0      | 1     |
+    | 11     | TENKEN            | 0     | 2      | 2     |
+    | 13     | TENKEN            | 0     | 2      | 2     |
+    | 14     | NOT CONNECTED     | 0     | 0      | 0     |
+    | Status | Keterangan               | Merah | Kuning | Hijau |
+    | ------ | ------------------------ | ----- | ------ | ----- |
+    | 15     | (Available)              | 1     | 2      | 0     |
+    | 16     | (Available)              | 2     | 0      | 0     |
+    | 17     | (Available)              | 0     | 2      | 0     |
+    | 18     | (Available)              | 2     | 2      | 0     |
+    | 19     | (Available)              | 1     | 0      | 2     |
+    | 20     | (Available)              | 2     | 1      | 1     |
+    | 21     | JAM ISTIRAHAT            | 0     | 1      | 1     |
+    | 22     | RENCANA PERBAIKAN        | 1     | 2      | 1     |
+    | 23     | TRIAL                    | 1     | 0      | 1     |
+    | 24     | PLAN PROSES SELESAI      | 2     | 2      | 2     |
+    | 25     | 5S                       | 1     | 1      | 1     |
+    | 26     | MEETING PAGI/SORE        | 2     | 1      | 2     |
+    | 27     | TENKEN                   | 0     | 2      | 2     |
+    | 28     | PEMANASAN                | 1     | 0      | 0     |
+    | 29     | CEK QC                   | 0     | 1      | 2     |
+    | 30     | INPUT DATA               | 0     | 2      | 1     |
+    | 31     | BUANG KIRIKO             | 2     | 0      | 1     |
+    | 32     | MENUNGGU INTRUKSI ATASAN | 1     | 1      | 2     |
+    | 33     | REPAIR                   | 1     | 2      | 2     |
+    | 34     | KAIZEN                   | 2     | 1      | 0     |
+    | 35     | GANTI TOISHI             | 2     | 0      | 2     |
+    | 36     | GANTI DRESSER            | 0     | 1      | 1     |
+    | 37     | 1 TOOTH                  | 1     | 1      | 0     |
+    | 38     | CHECK HAGATA             | 1     | 0      | 0     |
+    | 39     | DRESSING PROFILE         | 2     | 2      | 1     |
+    | 40     | DRESS-2                  | 0     | 2      | 2     |
+    | 41     | ANTRI JOB                | 1     | 2      | 2     |
+        

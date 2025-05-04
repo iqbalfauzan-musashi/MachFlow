@@ -58,9 +58,9 @@ const routes = [
   // Timeline Project
   { path: '/charts', name: 'Charts', element: Charts },
 
-  // Detail Production
-  { path: '/cikarang/machine/:name', name: 'DetailProduction', element: DetailProduction },
-  { path: '/karawang/machine/:name', name: 'DetailProduction', element: DetailProduction },
+  // Detail Production - Changed from :name to :machineCode to match component
+  { path: '/karawang/machine/:machineCode', name: 'DetailProduction', element: DetailProduction },
+  { path: '/cikarang/machine/:machineCode', name: 'DetailProduction', element: DetailProduction },
 ]
 
 export default routes
