@@ -1,8 +1,77 @@
 import React from 'react'
-import { CCard, CCardBody, CCardHeader } from '@coreui/react'
-import { getStatusConfig, COLORS } from '../../../components/signalLightConfig/signalLightConfig'
+import {
+  CCard,
+  CCardBody,
+  CTable,
+  CTableHead,
+  CTableRow,
+  CTableHeaderCell,
+  CTableBody,
+  CTableDataCell,
+} from '@coreui/react'
+import { getStatusConfig } from '../../../components/signalLightConfig/signalLightConfig'
 
-const CLegend = () => {
+const CLegend = ({ shifts, selectedDate, nextDayString }) => {
+  // Calculate status statistics from shifts data
+  const calculateStatusStatistics = () => {
+    const statusStats = {}
+
+    // Process all segments across all shifts
+    if (shifts && shifts.length > 0) {
+      shifts.forEach((shift) => {
+        // Skip Shift 3 if we're focusing only on selectedDate
+        if (shift.name === 'Shift 3') return
+
+        if (shift.progressSegments && shift.progressSegments.length > 0) {
+          shift.progressSegments.forEach((segment) => {
+            const status = segment.status
+            if (status === 'EMPTY') return // Skip empty segments
+
+            // Initialize status if not exists
+            if (!statusStats[status]) {
+              statusStats[status] = {
+                count: 0,
+                totalDurationHours: 0,
+                totalProduction: 0,
+              }
+            }
+
+            // Count occurrences
+            statusStats[status].count += 1
+
+            // Calculate duration for this segment
+            // Calculate segment duration based on its percentage of the shift
+            let shiftDuration
+            if (shift.name === 'Shift 1') {
+              shiftDuration = 9 // hours
+            } else if (shift.name === 'Shift 2') {
+              shiftDuration = 8 // hours
+            } else if (shift.name === 'Shift 3') {
+              shiftDuration = 7 // hours
+            }
+
+            const segmentDurationHours = (segment.value / 100) * shiftDuration
+            statusStats[status].totalDurationHours += segmentDurationHours
+
+            // If we have counter values, we could calculate production
+            // For now using placeholder logic - can be improved with actual counter data
+            if (status === 'NORMAL_OPERATION' || status === 'PRODUCTION') {
+              // Estimate production based on duration (assuming 400 units per hour)
+              statusStats[status].totalProduction += Math.round(segmentDurationHours * 400)
+            }
+          })
+        }
+      })
+    }
+
+    return statusStats
+  }
+
+  // Format hours to "X.X jam" format
+  const formatHours = (hours) => {
+    return `${hours.toFixed(1)} jam`
+  }
+
   // Get status color from the configuration
   const getProgressStyle = (status) => {
     if (status === 'EMPTY') {
@@ -15,7 +84,7 @@ const CLegend = () => {
     const config = getStatusConfig(status)
 
     // Handle custom colors that aren't CSS variables
-    if (config.borderColor.startsWith('#')) {
+    if (config.borderColor && config.borderColor.startsWith('#')) {
       return {
         backgroundColor: config.borderColor,
       }
@@ -36,76 +105,61 @@ const CLegend = () => {
     }
   }
 
-  // Import these from signalLightConfig.js for consistency
-  const MACHINE_STATUSES = {
-    MACHINE_OFF: 'machine off',
-    TROUBLE_MACHINE: 'trouble machine',
-    CHOKOTEI: 'chokotei',
-    DANDORI: 'dandori',
-    STOP_PLANNING: 'stop planning',
-    TOOL_CHANGES: 'tool changes',
-    WAITING_MATERIAL: 'waiting material',
-    CONTROL_LOSS_TIME: 'control loss time',
-    UNKNOWN_LOSS_TIME: 'unknown loss time',
-    NORMAL_OPERATION: 'normal operation',
-    TENKEN: 'tenken',
-    NOT_CONNECTED: 'not connected',
-    JAM_ISTIRAHAT: 'jam istirahat',
-    RENCANA_PERBAIKAN: 'rencana perbaikan',
-    TRIAL: 'trial',
-    PLAN_PROSES_SELESAI: 'plan proses selesai',
-    FIVE_S: '5s',
-    MEETING_PAGI_SORE: 'meeting pagi/sore',
-    PEMANASAN: 'pemanasan',
-    CEK_QC: 'cek qc',
-    INPUT_DATA: 'input data',
-    BUANG_KIRIKO: 'buang kiriko',
-    MENUNGGU_INTRUKSI_ATASAN: 'menunggu intruksi atasan',
-    REPAIR: 'repair',
-    KAIZEN: 'kaizen',
-    GANTI_TOISHI: 'ganti toishi',
-    GANTI_DRESSER: 'ganti dresser',
-    ONE_TOOTH: '1 tooth',
-    CHECK_HAGATA: 'check hagata',
-    DRESSING_PROFILE: 'dressing profile',
-    DRESS_2: 'dress-2',
-    ANTRI_JOB: 'antri job',
-    // Backward compatibility
-    MAINTENANCE: 'maintenance',
-    QUALITY_CHECK: 'quality check',
-    IDLE_TIME: 'idle time',
-    PRODUCTION: 'production',
-    SHUTDOWN: 'shutdown',
-  }
+  // Calculate the statistics
+  const statusStatistics = calculateStatusStatistics()
+
+  // Get array of statuses sorted by total duration (descending)
+  const sortedStatuses = Object.keys(statusStatistics).sort(
+    (a, b) => statusStatistics[b].totalDurationHours - statusStatistics[a].totalDurationHours,
+  )
 
   return (
-    <CCard className="mt-4">
-      <CCardHeader>
-        <strong>Status Legend</strong>
-      </CCardHeader>
+    <CCard className="mb-4">
       <CCardBody>
-        <div className="d-flex flex-wrap">
-          {Object.values(getStatusConfig('normal operation')).length > 0 &&
-            Object.keys(MACHINE_STATUSES).map((statusKey) => {
-              const status = MACHINE_STATUSES[statusKey]
+        <CTable bordered hover responsive className="legend-table">
+          <CTableHead>
+            <CTableRow className="table-primary">
+              <CTableHeaderCell scope="col" style={{ width: '60px' }}>
+                Status
+              </CTableHeaderCell>
+              <CTableHeaderCell scope="col">Keterangan</CTableHeaderCell>
+              <CTableHeaderCell scope="col">Total Status</CTableHeaderCell>
+              <CTableHeaderCell scope="col">Berapa kali status</CTableHeaderCell>
+              <CTableHeaderCell scope="col">Total Produksi</CTableHeaderCell>
+            </CTableRow>
+          </CTableHead>
+          <CTableBody>
+            {sortedStatuses.map((status) => {
+              const stats = statusStatistics[status]
               const config = getStatusConfig(status)
               const style = getProgressStyle(status)
 
+              // Determine if status should be shown as circle (for MACHINE_OFF)
+              const isCircle =
+                status.toUpperCase() === 'MACHINE_OFF' || status.toUpperCase() === 'MACHINE OFF'
+
               return (
-                <div key={statusKey} className="me-3 mb-2 d-flex align-items-center">
-                  <div
-                    style={{
-                      width: '20px',
-                      height: '20px',
-                      backgroundColor: style.backgroundColor,
-                      marginRight: '5px',
-                    }}
-                  ></div>
-                  <span>{config.displayName}</span>
-                </div>
+                <CTableRow key={status}>
+                  <CTableDataCell className="align-middle">
+                    <div
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        backgroundColor: style.backgroundColor,
+                        borderRadius: isCircle ? '50%' : '0',
+                        margin: '0 auto',
+                      }}
+                    ></div>
+                  </CTableDataCell>
+                  <CTableDataCell>{config.displayName || status}</CTableDataCell>
+                  <CTableDataCell>{formatHours(stats.totalDurationHours)}</CTableDataCell>
+                  <CTableDataCell>{stats.count}</CTableDataCell>
+                  <CTableDataCell>{stats.totalProduction}</CTableDataCell>
+                </CTableRow>
               )
             })}
-        </div>
+          </CTableBody>
+        </CTable>
       </CCardBody>
     </CCard>
   )

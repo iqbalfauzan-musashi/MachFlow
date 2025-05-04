@@ -9,6 +9,7 @@
     opacity: 1;
   }
 }
+
 // Card Styles
 .machine-card {
   &-wrapper {
@@ -93,12 +94,33 @@
     width: 30px;
     border-radius: 2px;
     min-height: 25px;
+
     &-green {
       background-color: #00ff00;
       box-shadow: 0 0 10px #00ff00;
 
       &.blinking {
         box-shadow: 0 0 15px #00ff00;
+        transition: box-shadow 0.5s ease-in-out;
+      }
+    }
+
+    &-red {
+      background-color: #ff0000;
+      box-shadow: 0 0 10px #ff0000;
+
+      &.blinking {
+        box-shadow: 0 0 15px #ff0000;
+        transition: box-shadow 0.5s ease-in-out;
+      }
+    }
+
+    &-yellow {
+      background-color: #ffff00;
+      box-shadow: 0 0 10px #ffff00;
+
+      &.blinking {
+        box-shadow: 0 0 15px #ffff00;
         transition: box-shadow 0.5s ease-in-out;
       }
     }

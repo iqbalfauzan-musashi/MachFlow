@@ -1,6 +1,14 @@
 CREATE DATABASE MACHINE_LOG;
 GO
 
+USE [MACHINE_LOG];
+GO
+
+IF OBJECT_ID('dbo.Machine_45045', 'U') IS NOT NULL
+    DROP TABLE dbo.Machine_45045;
+ELSE
+    PRINT 'Tabel Machine_45045 tidak ditemukan.';
+
 
 CREATE TABLE [dbo].[Machine_48042] (
    [ID]              INT            IDENTITY (1, 1) NOT NULL,

@@ -5,7 +5,7 @@ import axios from 'axios'
 import { getApiUrl } from '../../../utils/apiUtils'
 import './DetailProduction.scss'
 import ProgressDisplay from './CProgress'
-import CLegend from './Clegend.js'
+import CLegend from './CLegend.js'
 
 const DetailProduction = () => {
   const { machineCode } = useParams()
@@ -131,7 +131,22 @@ const DetailProduction = () => {
           </CCol>
         )}
       </CRow>
-      {machineData && <CLegend />}
+      {machineData && machineData.shifts && (
+        <div>
+          <CCard className="mb-4">
+            <CCardHeader>
+              <strong>Legend for {selectedDate} (Shift 1 & 2)</strong>
+            </CCardHeader>
+            <CCardBody>
+              <CLegend
+                shifts={machineData.shifts}
+                selectedDate={selectedDate}
+                nextDayString={nextDayString}
+              />
+            </CCardBody>
+          </CCard>
+        </div>
+      )}
       <strong>
         Detail Production - {selectedDate} (Shift 1 & 2) & {nextDayString} (Shift 3)
       </strong>
