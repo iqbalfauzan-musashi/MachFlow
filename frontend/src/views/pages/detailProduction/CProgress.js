@@ -9,6 +9,7 @@ import {
   CProgressStacked,
 } from '@coreui/react'
 import { getStatusConfig } from '../../../components/signalLightConfig/signalLightConfig'
+import CustomTooltip from './CTooltip'
 
 const ProgressDisplay = ({ shifts, selectedDate, nextDayString }) => {
   const getStatusColor = (status) => {
@@ -70,8 +71,9 @@ const ProgressDisplay = ({ shifts, selectedDate, nextDayString }) => {
     for (let hour = startHour; hour <= endHour; hour++) {
       const position = ((hour - startHour) / (endHour - startHour)) * 100
 
-      // Get the counter value for this hour
-      const hourCounter = getCounterForHour(shift, hour)
+      // Modified: Get the counter value for the previous hour (for the data that ends at this hour)
+      // except for the first hour marker which will have no counter
+      const hourCounter = hour === startHour ? null : getCounterForHour(shift, hour - 1)
 
       markers.push({
         time: `${(hour === 24 ? 0 : hour).toString().padStart(2, '0')}:00`,
@@ -89,6 +91,19 @@ const ProgressDisplay = ({ shifts, selectedDate, nextDayString }) => {
 
     const hourKey = hour.toString().padStart(2, '0')
     return shift.hourCounters[hourKey] || null
+  }
+
+  // Enhanced tooltip content generator for progress segments
+  const getTooltipContent = (segment) => {
+    if (segment.isEmpty) return null
+
+    let content = `${segment.displayTime}: ${segment.status}`
+
+    if (segment.isContinuity) {
+      content = `${segment.displayTime}: ${segment.status} (Continued from ${segment.sourceTime})${segment.durationDisplay}`
+    }
+
+    return content
   }
 
   return (
@@ -128,20 +143,16 @@ const ProgressDisplay = ({ shifts, selectedDate, nextDayString }) => {
                       {shift.progressSegments &&
                         shift.progressSegments.map((segment, segmentIndex) => {
                           const customStyle = getProgressStyle(segment.status)
+                          const tooltipContent = getTooltipContent(segment)
 
                           return (
-                            <CProgress
-                              style={customStyle}
-                              value={segment.value}
+                            <CustomTooltip
                               key={segmentIndex}
-                              title={
-                                segment.isEmpty
-                                  ? undefined
-                                  : segment.isContinuity
-                                    ? `${segment.displayTime}: ${segment.status} (Continued from ${segment.sourceTime})${segment.durationDisplay}`
-                                    : `${segment.displayTime}: ${segment.status}`
-                              }
-                            />
+                              content={tooltipContent}
+                              placement="top"
+                            >
+                              <CProgress style={customStyle} value={segment.value} />
+                            </CustomTooltip>
                           )
                         })}
                     </CProgressStacked>
@@ -355,36 +366,69 @@ ProgressDisplay.getCountersByHour = (records, shiftName) => {
   }
 
   // First initialize all hours with null
-  for (let h = startHour; h <= endHour; h++) {
+  for (let h = startHour; h < endHour; h++) {
     const hourKey = (h === 24 ? 0 : h).toString().padStart(2, '0')
     hourCounters[hourKey] = null
   }
 
-  // Group records by hour and get the last counter value for each hour
+  // Find base counter value at the start of the shift
+  let baseCounter = 0
+  let foundBaseCounter = false
+
+  // If we have records, try to find the earliest counter value as our base
+  if (records.length > 0) {
+    // Find the earliest record with a counter value
+    const earliestRecords = records
+      .filter((record) => record.counter !== undefined)
+      .sort((a, b) => a.displayTimestamp - b.displayTimestamp)
+
+    if (earliestRecords.length > 0) {
+      baseCounter = earliestRecords[0].counter
+      foundBaseCounter = true
+    }
+  }
+
+  // Group records by hour
+  const recordsByHour = {}
+
+  // Group all records by hour
   records.forEach((record) => {
     if (record.counter !== undefined) {
       const hour = record.displayTimestamp.getHours()
       const hourKey = hour.toString().padStart(2, '0')
 
-      // Get the latest record for each hour based on minutes
-      if (
-        !hourCounters[hourKey] ||
-        record.displayTimestamp.getMinutes() > (hourCounters[hourKey].minutes || 0)
-      ) {
-        hourCounters[hourKey] = {
-          counter: record.counter,
-          minutes: record.displayTimestamp.getMinutes(),
-        }
+      if (!recordsByHour[hourKey]) {
+        recordsByHour[hourKey] = []
       }
+
+      recordsByHour[hourKey].push({
+        counter: record.counter,
+        minutes: record.displayTimestamp.getMinutes(),
+        timestamp: record.displayTimestamp,
+      })
     }
   })
 
-  // Convert from objects to just counter values
-  Object.keys(hourCounters).forEach((hour) => {
-    if (hourCounters[hour] && hourCounters[hour].counter !== undefined) {
-      hourCounters[hour] = hourCounters[hour].counter
+  // Process hours in sequence to calculate per-hour counters
+  let previousHourCounter = baseCounter
+  for (let h = startHour; h < endHour; h++) {
+    const hourKey = (h === 24 ? 0 : h).toString().padStart(2, '0')
+
+    if (recordsByHour[hourKey] && recordsByHour[hourKey].length > 0) {
+      // Sort records within this hour by minutes
+      recordsByHour[hourKey].sort((a, b) => a.minutes - b.minutes)
+
+      // Get the latest record for this hour
+      const latestRecord = recordsByHour[hourKey][recordsByHour[hourKey].length - 1]
+
+      // Calculate the difference from previous hour's final counter
+      const hourlyCounter = latestRecord.counter - previousHourCounter
+      hourCounters[hourKey] = hourlyCounter
+
+      // Update the previous counter for the next iteration
+      previousHourCounter = latestRecord.counter
     }
-  })
+  }
 
   return hourCounters
 }
@@ -499,6 +543,16 @@ ProgressDisplay.createProgressSegments = (shift, shiftStartTime, shiftEndTime, r
 
   const segments = []
 
+  // Get current time for comparison
+  const currentTime = new Date()
+
+  // Check if shift is in the past
+  const shiftDate = new Date(shiftStartTime)
+  shiftDate.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const isPastDay = shiftDate < today
+
   let shiftDuration
   if (shift.name === 'Shift 1') {
     shiftDuration = 9
@@ -508,20 +562,36 @@ ProgressDisplay.createProgressSegments = (shift, shiftStartTime, shiftEndTime, r
     shiftDuration = 7
   }
 
-  if (records[0].displayTimestamp > shiftStartTime) {
+  // For past days, use all records; for today, filter to current time
+  const filteredRecords = isPastDay
+    ? records
+    : records.filter((record) => record.displayTimestamp <= currentTime)
+
+  if (filteredRecords.length === 0) {
+    // If no valid records after filtering, show empty bar
+    segments.push({
+      status: 'EMPTY',
+      value: 100,
+      displayTime: `${shiftStartTime.getHours().toString().padStart(2, '0')}:00`,
+      isEmpty: true,
+    })
+    return segments
+  }
+
+  if (filteredRecords[0].displayTimestamp > shiftStartTime) {
     let initialPadPercentage
 
     if (shift.name === 'Shift 1') {
-      const firstRecordHour = records[0].displayTimestamp.getHours()
-      const firstRecordMinute = records[0].displayTimestamp.getMinutes()
+      const firstRecordHour = filteredRecords[0].displayTimestamp.getHours()
+      const firstRecordMinute = filteredRecords[0].displayTimestamp.getMinutes()
       initialPadPercentage = ((firstRecordHour - 7 + firstRecordMinute / 60) / shiftDuration) * 100
     } else if (shift.name === 'Shift 2') {
-      const firstRecordHour = records[0].displayTimestamp.getHours()
-      const firstRecordMinute = records[0].displayTimestamp.getMinutes()
+      const firstRecordHour = filteredRecords[0].displayTimestamp.getHours()
+      const firstRecordMinute = filteredRecords[0].displayTimestamp.getMinutes()
       initialPadPercentage = ((firstRecordHour - 16 + firstRecordMinute / 60) / shiftDuration) * 100
     } else if (shift.name === 'Shift 3') {
-      const firstRecordHour = records[0].displayTimestamp.getHours()
-      const firstRecordMinute = records[0].displayTimestamp.getMinutes()
+      const firstRecordHour = filteredRecords[0].displayTimestamp.getHours()
+      const firstRecordMinute = filteredRecords[0].displayTimestamp.getMinutes()
       initialPadPercentage = ((firstRecordHour + firstRecordMinute / 60) / shiftDuration) * 100
     }
 
@@ -535,18 +605,42 @@ ProgressDisplay.createProgressSegments = (shift, shiftStartTime, shiftEndTime, r
     }
   }
 
-  // Get current time for comparing with the last record
-  const currentTime = new Date()
-  const currentHour = currentTime.getHours()
-  const currentMinute = currentTime.getMinutes()
+  // For past days, always set currentTimePosition to cover full shift (100%)
+  let currentTimePosition = isPastDay ? 1 : 0
 
-  // Get today's date in YYYY-MM-DD format for comparison
-  const todayDateStr = currentTime.toISOString().split('T')[0]
+  // Only calculate partial progress for current day
+  if (!isPastDay) {
+    if (shift.name === 'Shift 1') {
+      if (currentTime.getHours() >= 7 && currentTime.getHours() < 16) {
+        currentTimePosition =
+          (currentTime.getHours() - 7 + currentTime.getMinutes() / 60) / shiftDuration
+      } else if (currentTime.getHours() >= 16) {
+        currentTimePosition = 1
+      }
+    } else if (shift.name === 'Shift 2') {
+      if (currentTime.getHours() >= 16) {
+        currentTimePosition =
+          (currentTime.getHours() - 16 + currentTime.getMinutes() / 60) / shiftDuration
+      } else if (currentTime.getHours() < 16) {
+        currentTimePosition = 0
+      }
+    } else if (shift.name === 'Shift 3') {
+      if (currentTime.getHours() >= 0 && currentTime.getHours() < 7) {
+        currentTimePosition =
+          (currentTime.getHours() + currentTime.getMinutes() / 60) / shiftDuration
+      } else if (currentTime.getHours() >= 7) {
+        currentTimePosition = 1
+      }
+    }
+  }
 
-  for (let i = 0; i < records.length; i++) {
-    const currentRecord = records[i]
-    const nextRecord = i < records.length - 1 ? records[i + 1] : null
-    const isLastRecord = i === records.length - 1
+  // Clamp current time position between 0 and 1
+  currentTimePosition = Math.max(0, Math.min(1, currentTimePosition))
+
+  for (let i = 0; i < filteredRecords.length; i++) {
+    const currentRecord = filteredRecords[i]
+    const nextRecord = i < filteredRecords.length - 1 ? filteredRecords[i + 1] : null
+    const isLastRecord = i === filteredRecords.length - 1
 
     let segmentPercentage
 
@@ -583,72 +677,38 @@ ProgressDisplay.createProgressSegments = (shift, shiftStartTime, shiftEndTime, r
         segmentPercentage = (nextPosition - currentPosition) * 100
       }
     } else {
-      // Get the date string from the current record's timestamp
-      const recordDateStr = currentRecord.displayTimestamp.toISOString().split('T')[0]
-
-      // Check if the record is from today
-      const isToday = recordDateStr === todayDateStr
-
-      let currentPosition, nowPosition
+      // Calculate position for the last record
+      let currentPosition
 
       if (shift.name === 'Shift 1') {
         const recordHour = currentRecord.displayTimestamp.getHours()
         const recordMinute = currentRecord.displayTimestamp.getMinutes()
         currentPosition = (recordHour - 7 + recordMinute / 60) / shiftDuration
-
-        // Only consider current time if it's within the shift hours AND the record is from today
-        if (isToday && currentHour >= 7 && currentHour < 16) {
-          nowPosition = (currentHour - 7 + currentMinute / 60) / shiftDuration
-        } else {
-          // If not today or current time is outside shift hours, use end of shift
-          nowPosition = 1
-        }
       } else if (shift.name === 'Shift 2') {
         const recordHour = currentRecord.displayTimestamp.getHours()
         const recordMinute = currentRecord.displayTimestamp.getMinutes()
         currentPosition = (recordHour - 16 + recordMinute / 60) / shiftDuration
-
-        // Only consider current time if it's within the shift hours AND the record is from today
-        if (isToday && (currentHour >= 16 || (currentHour === 0 && currentMinute === 0))) {
-          if (currentHour >= 16) {
-            nowPosition = (currentHour - 16 + currentMinute / 60) / shiftDuration
-          } else {
-            nowPosition = 1 // End of shift at midnight
-          }
-        } else {
-          // If not today or current time is outside shift hours, use end of shift
-          nowPosition = 1
-        }
       } else if (shift.name === 'Shift 3') {
         const recordHour = currentRecord.displayTimestamp.getHours()
         const recordMinute = currentRecord.displayTimestamp.getMinutes()
         currentPosition = (recordHour + recordMinute / 60) / shiftDuration
-
-        // Only consider current time if it's within the shift hours AND the record is from today
-        if (isToday && currentHour >= 0 && currentHour < 7) {
-          nowPosition = (currentHour + currentMinute / 60) / shiftDuration
-        } else {
-          // If not today or current time is outside shift hours, use end of shift
-          nowPosition = 1
-        }
       }
 
-      // Ensure we don't exceed the shift duration
-      nowPosition = Math.min(nowPosition, 1)
+      // For past days, the last segment should extend to the end of the shift (100%)
+      // For today, extend to the current time position
+      const endPosition = isPastDay ? 1 : currentTimePosition
 
-      segmentPercentage = (nowPosition - currentPosition) * 100
+      // For past days, always fill to 100% if it's the last record
+      segmentPercentage = (endPosition - currentPosition) * 100
     }
+
+    // Ensure segment percentage is positive
+    segmentPercentage = Math.max(0.1, segmentPercentage)
 
     let durationDisplay = ''
     if (currentRecord.isContinuity && currentRecord.sourceTimestamp) {
-      // Only use currentTime for duration calculation if the record is from today
-      const recordDateStr = currentRecord.displayTimestamp.toISOString().split('T')[0]
-      const isToday = recordDateStr === todayDateStr
-      const endTime = nextRecord
-        ? nextRecord.timestamp
-        : isLastRecord && isToday
-          ? currentTime
-          : shiftEndTime
+      // Calculate duration up to current time or next record
+      const endTime = nextRecord ? nextRecord.timestamp : isPastDay ? shiftEndTime : currentTime
       const durationMs = endTime - currentRecord.sourceTimestamp
       const durationHours = Math.floor(durationMs / (1000 * 60 * 60))
       const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60))
@@ -657,11 +717,14 @@ ProgressDisplay.createProgressSegments = (shift, shiftStartTime, shiftEndTime, r
 
     const displayTime =
       currentRecord.displayTime ||
-      `${currentRecord.displayTimestamp.getHours().toString().padStart(2, '0')}:${currentRecord.displayTimestamp.getMinutes().toString().padStart(2, '0')}`
+      `${currentRecord.displayTimestamp.getHours().toString().padStart(2, '0')}:${currentRecord.displayTimestamp
+        .getMinutes()
+        .toString()
+        .padStart(2, '0')}`
 
     segments.push({
       status: currentRecord.status,
-      value: Math.max(0.1, segmentPercentage),
+      value: segmentPercentage,
       displayTime: displayTime,
       durationDisplay: durationDisplay,
       isContinuity: currentRecord.isContinuity,
@@ -669,14 +732,14 @@ ProgressDisplay.createProgressSegments = (shift, shiftStartTime, shiftEndTime, r
     })
   }
 
-  // If the last segment doesn't reach the end of the shift, add an empty segment
-  const lastSegment = segments[segments.length - 1]
+  // Add empty segment only if it's the current day and the shift is in progress
+  // For past days, don't add empty segments at the end
   const totalPercentage = segments.reduce((total, segment) => total + segment.value, 0)
 
-  if (totalPercentage < 99.9) {
+  if (!isPastDay && totalPercentage < 99.9 && currentTimePosition > 0) {
     segments.push({
       status: 'EMPTY',
-      value: 100 - totalPercentage,
+      value: Math.max(0.1, 100 - totalPercentage),
       isEmpty: true,
     })
   }

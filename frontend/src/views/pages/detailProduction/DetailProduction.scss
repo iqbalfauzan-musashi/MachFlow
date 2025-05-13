@@ -1,3 +1,5 @@
+/* DetailProduction.scss */
+
 .progress-grid-container {
   position: relative;
   width: 100%;
@@ -53,4 +55,10 @@
 
 .c-progress-stacked {
   height: 32px !important;
+}
+
+/* Add styling for legend table */
+.legend-table {
+  margin-top: 20px;
+  font-size: 0.9rem;
 }

@@ -5,7 +5,7 @@ import axios from 'axios'
 import { getApiUrl } from '../../../utils/apiUtils'
 import './DetailProduction.scss'
 import ProgressDisplay from './CProgress'
-import CLegend from './CLegend.js'
+import CLegend from './Clegend'
 
 const DetailProduction = () => {
   const { machineCode } = useParams()
